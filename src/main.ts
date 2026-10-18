@@ -1,20 +1,30 @@
 import './style.css';
 import { element, button } from './dom';
 import { importFolder } from './import';
-import { libraries, removeLibrary, saveLibrary } from './storage';
+import { libraries, readProgress, removeLibrary, saveLibrary } from './storage';
 import type { Library } from './model';
+import { Reader } from './reader';
+import { applySettings, loadSettings } from './settings';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const status = element('p', '', 'status');
 status.setAttribute('role', 'status');
 const catalog = element('main');
+let reader: Reader | undefined;
+let settings = loadSettings();
+applySettings(settings);
 const input = element('input');
 input.type = 'file'; input.multiple = true;
 input.setAttribute('webkitdirectory', '');
 input.setAttribute('aria-label', 'Import raccoon-artifacts folder');
 input.addEventListener('change', () => { void load(); });
 const header = element('header');
-header.append(element('h1', 'RACCOON'), element('p', 'Understand the change. Keep the source local.'), input);
+header.className = 'app-header';
+const preferences = element('div', '', 'toolbar');
+preferences.append(button('Theme', () => updateSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })),
+  button('A−', () => updateSettings({ ...settings, fontSize: Math.max(11, settings.fontSize - 1) }), 'Smaller code text'),
+  button('A+', () => updateSettings({ ...settings, fontSize: Math.min(22, settings.fontSize + 1) }), 'Larger code text'));
+header.append(element('h1', 'RACCOON'), input, preferences);
 app.append(header, status, catalog);
 
 async function load(): Promise<void> {
@@ -50,14 +60,32 @@ function repositoryCard(library: Library): HTMLElement {
     const manifest = artifact.manifest;
     card.append(element('h3', `#${manifest.source.pr} ${manifest.source.title}`));
     card.append(element('p', `Snapshot ${manifest.source.headSha.slice(0, 10)} · ${manifest.content.threads.length} threads`));
-    for (const thread of manifest.content.threads) card.append(element('p', `${thread.title}: ${thread.summary}`));
+    card.append(element('p', `${manifest.source.branch} · generated ${manifest.createdAt.slice(0, 10)}`));
+    card.append(button(`Open PR #${manifest.source.pr}`, async () => {
+      try {
+        reader?.dispose();
+        reader = new Reader(artifact, settings, await readProgress(), updateSettings, () => { void render().catch(showError); }, showError);
+        catalog.replaceChildren(reader.node);
+        status.textContent = `${library.repository} · pinned ${manifest.source.headSha.slice(0, 10)}`;
+      } catch (error) { showError(String(error)); }
+    }));
   }
   return card;
 }
 
 async function render(): Promise<void> {
+  reader?.dispose(); reader = undefined;
   const data = await libraries();
   catalog.replaceChildren(...data.map(repositoryCard));
   if (!data.length) catalog.append(element('p', 'In GitSync, select the PR branch and synchronize. Then import its raccoon-artifacts folder here.'));
 }
+function showError(message: string): void { status.textContent = message; }
+function updateSettings(value: typeof settings): void {
+  settings = value; applySettings(settings); reader?.updateSettings(settings);
+}
 void render().catch((error: unknown) => { status.textContent = `Local storage unavailable: ${String(error)}`; });
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+    status.textContent = 'Offline application caching unavailable. Imported data remains local.';
+  });
+}
