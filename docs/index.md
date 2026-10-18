@@ -10,3 +10,5 @@ okf_version: "0.1"
 - [Import behavior and tests](/import-behavior.md)
 - [Import implementation issue](/import-issue.md)
 - [Context and glossary](/context.md)
+- [Thread-first reading behavior](/reading-behavior.md)
+- [Reader implementation issue](/reading-issue.md)

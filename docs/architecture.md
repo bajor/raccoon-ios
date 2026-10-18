@@ -19,6 +19,14 @@ DOM elements. The static host serves the application, not private artifacts.
 No runtime library calls a network API with imported content. A restrictive
 Content Security Policy is defense in depth, not a substitute for safe rendering.
 
-Per global policy, Mermaid review diagrams are rendered outside the repository;
-only temporary review SVGs live under `visual-explanations/` and are deleted from
-`main` after merge. Permanent docs retain these ownership descriptions.
+`src/reader.ts` owns thread, stage and ordered-reference navigation, diagram
+selection and the bottom narrative. `src/code-view.ts` renders a virtual viewport
+over the complete imported file. `src/settings.ts` owns local display preferences.
+Reading markers are separate from source assets in IndexedDB.
+
+`scripts/build-worker.mjs` emits an offline worker from the production build's
+static asset list. It never receives imported content. Navigation falls back to
+the cached application shell when offline; local data is still owned by IndexedDB.
+
+PR visual explanations are request-only. Explicitly requested learning diagrams
+are product content, not default PR review illustrations.
