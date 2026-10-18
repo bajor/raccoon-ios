@@ -53,3 +53,6 @@ reference. Preserve narrative position when re-rendering the same explanation.
 No-op thread selection does not leave an explanation or clear manual-unread
 suppression. Concurrent PR opens supersede older pending opens, with exactly one
 keyboard listener. Browser regressions cover each reproduced failure separately.
+
+The narrative keeps its last visible scroll offset while hidden; hidden DOM scroll
+values cannot overwrite that offset before the panel becomes visible again.

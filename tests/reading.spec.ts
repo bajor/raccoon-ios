@@ -95,3 +95,12 @@ test('concurrent PR opens install only one keyboard handler', async ({ page }) =
   await page.keyboard.press('n');
   await expect(page.getByLabel('Explanation')).toBeHidden();
 });
+
+test('hiding and showing the same explanation preserves narrative position', async ({ page }) => {
+  await openReader(page, { long: true });
+  const end = page.getByText('End of explanation', { exact: true });
+  await end.scrollIntoViewIfNeeded();
+  await page.keyboard.press('n');
+  await page.keyboard.press('n');
+  await expect(end).toBeInViewport();
+});

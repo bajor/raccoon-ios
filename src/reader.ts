@@ -27,6 +27,7 @@ export class Reader {
   private diagramIndex = 0;
   private suppressRead = false;
   private narrativeKey: string | undefined;
+  private narrativeScroll = 0;
   private disposed = false;
   private readonly keyboard = (event: KeyboardEvent): void => this.key(event);
 
@@ -115,7 +116,8 @@ export class Reader {
 
   private renderNarrative(): void {
     const key = this.readKey;
-    const scroll = this.narrativeKey === key ? this.narrativeBody.scrollTop : 0;
+    if (this.narrativeKey !== key) this.narrativeScroll = 0;
+    else if (!this.narrative.hidden) this.narrativeScroll = this.narrativeBody.scrollTop;
     this.narrativeKey = key;
     this.narrative.hidden = !this.settings.narrative;
     const read = this.progress.has(this.readKey);
@@ -136,7 +138,7 @@ export class Reader {
     const end = element('p', 'End of explanation', 'end-marker');
     this.narrativeBody.replaceChildren(...paragraphs, end);
     this.narrative.replaceChildren(bar, this.narrativeBody);
-    this.narrativeBody.scrollTop = scroll;
+    if (!this.narrative.hidden) this.narrativeBody.scrollTop = this.narrativeScroll;
     this.observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting) && !this.suppressRead && this.settings.narrative && this.readKey === key) {
         this.observer?.disconnect(); void this.saveRead(true);
