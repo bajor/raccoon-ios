@@ -21,14 +21,23 @@ async function load(): Promise<void> {
   if (!input.files?.length) return;
   input.disabled = true;
   status.textContent = 'Verifying complete folder…';
+  let imported: Library | undefined;
   try {
     const library = await importFolder(input.files);
     await saveLibrary(library);
-    await render();
+    imported = library;
     status.textContent = `Imported ${library.repository}. ${library.artifacts.length} PRs cached locally.`;
-    await navigator.storage?.persist?.();
   } catch (error) { status.textContent = `Import failed. Previous data kept. ${error instanceof Error ? error.message : String(error)}`; }
   finally { input.disabled = false; input.value = ''; }
+  if (!imported) return;
+  void requestPersistence();
+  try { await render(); }
+  catch (error) { status.textContent = `Imported ${imported.repository}, but the catalog could not refresh: ${String(error)}`; }
+}
+
+async function requestPersistence(): Promise<void> {
+  try { await navigator.storage?.persist?.(); }
+  catch { /* Persistence is optional; a denied request does not undo a saved import. */ }
 }
 
 function repositoryCard(library: Library): HTMLElement {

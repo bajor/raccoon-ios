@@ -8,8 +8,11 @@ async function importData(page: Page, options: Parameters<typeof folder>[0] = {}
   try {
     const input = page.getByLabel('Import raccoon-artifacts folder');
     await input.setInputFiles(root);
-    await expect(input).toHaveValue('');
-    await expect(page.getByRole('status')).toContainText(/^(Imported |Import failed\.)/);
+    await expect.poll(() => page.evaluate(() => {
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+      const status = document.querySelector('[role="status"]')?.textContent ?? '';
+      return input.value === '' && input.files?.length === 0 && !input.disabled && /^(Imported |Import failed\.)/.test(status);
+    })).toBe(true);
   }
   finally { await rm(dirname(root), { recursive: true, force: true }); }
 }
@@ -20,6 +23,12 @@ test('complete local folder survives a browser reload', async ({ page }) => {
   await importData(page);
   await page.reload();
   await expect(page.getByRole('heading', { name: '#1 Handler 1' })).toBeVisible();
+});
+
+test('denied persistence does not report a committed import as failed', async ({ page }) => {
+  await page.evaluate(() => { navigator.storage.persist = async () => { throw new Error('Persistence denied'); }; });
+  await importData(page);
+  await expect(page.getByRole('status')).toContainText('Imported bajor/example.');
 });
 
 for (const [name, option, message] of [
