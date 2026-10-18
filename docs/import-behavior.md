@@ -27,3 +27,11 @@ accompanies the implementing PR. Selected folders are bounded to 200 MiB.
 | Active SVG | Browser integration | Script-bearing SVG never reaches the cache |
 
 These are browser integration tests, not unit tests with mocked storage.
+
+## Review amendment
+
+Persistence requests are best effort and never delay input reset or change the
+result of an already committed import. Tests await one synchronous browser-state
+read from Node-side polling before deleting their selected-folder fixtures. This
+avoids the WebKit asynchronous locator-assertion path without synthetic uploads,
+retries, longer timeouts or reduced coverage. CI retains failure traces for diagnosis.
