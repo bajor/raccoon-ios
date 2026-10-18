@@ -3,14 +3,16 @@ import { rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { folder, generation } from './fixture';
 
-async function openReader(page: Page): Promise<void> {
+async function openReader(page: Page, options: Parameters<typeof folder>[0] = {}, double = false): Promise<void> {
   await page.goto('/');
-  const root = await folder();
+  const root = await folder(options);
   try {
     await page.getByLabel('Import raccoon-artifacts folder').setInputFiles(root);
     await expect.poll(() => page.evaluate(() => document.querySelector('[role="status"]')?.textContent)).toContain('Imported bajor/example.');
   } finally { await rm(dirname(root), { recursive: true, force: true }); }
-  await page.getByRole('button', { name: 'Open PR #1', exact: true }).click();
+  const open = page.getByRole('button', { name: 'Open PR #1', exact: true });
+  if (double) await open.dblclick(); else await open.click();
+  await expect(page.getByRole('heading', { name: 'Request flow · Final state', exact: true })).toBeVisible();
 }
 
 test('opens final state with full literal source instead of executing HTML', async ({ page }) => {
@@ -64,4 +66,32 @@ test('cached application and source reopen offline', async ({ page, context }) =
   await page.reload();
   await page.getByRole('button', { name: 'Open PR #1', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Complete source file' })).toContainText('export function handler()');
+});
+
+test('first source view reaches a reference deep inside a complete file', async ({ page }) => {
+  await openReader(page, { long: true });
+  await expect(page.getByRole('region', { name: 'Complete source file' })).toContainText('handler line 500');
+});
+
+test('selecting a late reference preserves surrounding narrative position', async ({ page }) => {
+  await openReader(page, { long: true });
+  const last = page.getByRole('button', { name: 'src/main.ts:500-503', exact: true }).last();
+  await last.click();
+  await expect(last).toBeInViewport();
+});
+
+test('no-op thread selection does not undo manual unread', async ({ page }) => {
+  await openReader(page);
+  await page.getByText('End of explanation', { exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole('button', { name: 'Mark unread', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Mark read', exact: true })).toBeVisible();
+  await page.keyboard.press('K');
+  await page.getByRole('button', { name: 'Open thread Request flow', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Mark read', exact: true })).toBeVisible();
+});
+
+test('concurrent PR opens install only one keyboard handler', async ({ page }) => {
+  await openReader(page, {}, true);
+  await page.keyboard.press('n');
+  await expect(page.getByLabel('Explanation')).toBeHidden();
 });

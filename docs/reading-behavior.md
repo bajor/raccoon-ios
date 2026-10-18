@@ -45,3 +45,11 @@ keyboard behavior. On-screen controls provide the same actions without a keyboar
 4. Given cached application assets and an imported PR, when reopening offline,
    display the library, explanations and full source without backend requests.
 5. Given HTML in imported prose or source, when displayed, treat it as literal text.
+
+## Review amendment
+
+Create the virtual file's full scroll extent before centering a deep initial
+reference. Preserve narrative position when re-rendering the same explanation.
+No-op thread selection does not leave an explanation or clear manual-unread
+suppression. Concurrent PR opens supersede older pending opens, with exactly one
+keyboard listener. Browser regressions cover each reproduced failure separately.
