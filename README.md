@@ -32,6 +32,8 @@ or already imported browser copies. Synchronize and re-import, or remove the loc
 
 Node.js 22+ and npm are required. `npm ci`, then `make test`. Browser tests use
 Playwright Chromium and WebKit; install them with `npx playwright install --with-deps`.
+Run tests through `npm test` (or `make test`), so the version-guarded upstream
+Playwright 1.64.1 directory-upload fix is applied. See [the recorded driver race](docs/import-behavior.md).
 `npm run dev` starts the application. `npm run build` creates relative-path static
 assets for GitHub Pages. No backend, GitHub credential or model key is used.
 
