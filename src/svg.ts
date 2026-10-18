@@ -3,6 +3,8 @@ const attributes = new Set(['xmlns', 'viewBox', 'width', 'height', 'x', 'y', 'x1
   'd', 'points', 'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'font-family', 'font-size', 'font-weight',
   'text-anchor', 'dominant-baseline', 'transform', 'id', 'marker-end', 'markerWidth', 'markerHeight', 'refX', 'refY', 'orient', 'role', 'aria-label']);
 const namespace = 'http://www.w3.org/2000/svg';
+const localResource = /^url\(#[a-zA-Z0-9_-]+\)$/;
+const paint = /^(?:none|#[a-f0-9]{3}|#[a-f0-9]{4}|#[a-f0-9]{6}|#[a-f0-9]{8})$/i;
 
 /** The artifact format permits static SVG only, never arbitrary web documents. */
 export function validateSvg(text: string): void {
@@ -14,7 +16,9 @@ export function validateSvg(text: string): void {
     for (const attribute of element.attributes) {
       if (!attributes.has(attribute.name)) throw new Error(`Unsafe SVG attribute: ${attribute.name}`);
       if (attribute.namespaceURI && attribute.namespaceURI !== 'http://www.w3.org/2000/xmlns/') throw new Error('Unsafe SVG namespace');
-      if (/url\s*\(/i.test(attribute.value) && !/^url\(#[a-zA-Z0-9_-]+\)$/.test(attribute.value)) throw new Error('External SVG resource');
+      if (['fill', 'stroke', 'marker-end'].includes(attribute.name) && !paint.test(attribute.value) && !localResource.test(attribute.value)) {
+        throw new Error('Unsafe SVG paint or resource');
+      }
     }
   }
   const instructions = document.createTreeWalker(document, NodeFilter.SHOW_PROCESSING_INSTRUCTION);

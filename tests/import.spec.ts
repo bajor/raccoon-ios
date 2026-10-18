@@ -6,8 +6,10 @@ import { folder, generation, replacement } from './fixture';
 async function importData(page: Page, options: Parameters<typeof folder>[0] = {}): Promise<void> {
   const root = await folder(options);
   try {
-    await page.getByLabel('Import raccoon-artifacts folder').setInputFiles(root);
-    await expect(page.getByRole('status')).not.toContainText('Verifying');
+    const input = page.getByLabel('Import raccoon-artifacts folder');
+    await input.setInputFiles(root);
+    await expect(input).toHaveValue('');
+    await expect(page.getByRole('status')).toContainText(/^(Imported |Import failed\.)/);
   }
   finally { await rm(dirname(root), { recursive: true, force: true }); }
 }
@@ -44,6 +46,13 @@ test('empty catalog removes that repository’s cached PRs', async ({ page }) =>
 test('script-bearing SVG is rejected before caching', async ({ page }) => {
   await importData(page, { diagram: '<svg xmlns="http://www.w3.org/2000/svg"><script>window.leaked=true</script></svg>' });
   await expect(page.getByRole('status')).toContainText('SVG contains a non-static element');
+  await expect(page.getByRole('heading', { name: '#1 Handler 1' })).toHaveCount(0);
+});
+
+test('CSS-escaped external SVG paint is rejected before caching', async ({ page }) => {
+  const diagram = String.raw`<svg xmlns="http://www.w3.org/2000/svg"><rect fill="u\72l(https://example.invalid/probe#x)"/></svg>`;
+  await importData(page, { diagram });
+  await expect(page.getByRole('status')).toContainText('Unsafe SVG paint or resource');
   await expect(page.getByRole('heading', { name: '#1 Handler 1' })).toHaveCount(0);
 });
 
