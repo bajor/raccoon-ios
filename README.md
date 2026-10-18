@@ -7,7 +7,8 @@ historical: there is no native iOS app, Xcode project or TestFlight build.
 
 1. Use the existing **GitSync** iOS app to synchronize your source repository and
    select the analyzed PR branch.
-2. Open the GitHub Pages reader in Safari (iPadOS 18.4+). Optionally add it to the Home Screen.
+2. Open [the reader](https://bajor.github.io/raccoon-ios/) in Safari (iPadOS 18.4+).
+   Optionally add it to the Home Screen.
 3. Select **Import raccoon-artifacts folder** and choose that folder in Files.
 4. After changing branches or synchronizing in GitSync, select the folder again.
    Imports are snapshots, not a live connection to a directory.
@@ -34,9 +35,21 @@ Playwright Chromium and WebKit; install them with `npx playwright install --with
 `npm run dev` starts the application. `npm run build` creates relative-path static
 assets for GitHub Pages. No backend, GitHub credential or model key is used.
 
-This first slice verifies local folder import and storage. The complete reading
-interface follows separately. Physical iPad Files/GitSync selection still needs
-real-device acceptance; desktop browser automation cannot prove it works.
+Open a PR and choose a functional thread. The final explanation opens first, with
+the complete referenced file. Use **History map and commit shortcuts** for older
+stages, **Show diagrams** for that thread's diagrams, and **Hide narrative** for
+more code space. Repeated references keep their own ordered navigation positions.
+Reading the explanation's end marks it read. **Mark unread** keeps it unread until
+you leave that explanation. Theme, text size and narrative visibility are local.
+
+Keyboard: `j/k` references, `h/l` stages, `J/K` threads, `g` final state, `n` narrative,
+`d` diagrams/code, `t` history, `?` help. Buttons support the same actions on touch.
+After one successful online load, the application shell and imported data can be
+used offline. Browser eviction can still remove either cache. Close and reopen the
+reader online to activate an available application update.
+
+Physical iPad Files/GitSync selection still needs real-device acceptance; desktop
+browser automation cannot prove it works.
 
 ## Docs index
 

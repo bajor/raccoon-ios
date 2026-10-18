@@ -14,3 +14,5 @@ description: Shared vocabulary and the reader's module boundaries.
 - **PWA:** progressive web app, a static reader optionally installed to the Home Screen.
 - **CSP:** Content Security Policy, browser rules limiting executable content and requests.
 - **GitSync:** an existing external iOS Git application, not a Raccoon component.
+- **Service worker:** browser code that caches the static application shell, never imported artifacts.
+- **Virtual source viewport:** a scrollable complete file that renders only its currently visible lines.
