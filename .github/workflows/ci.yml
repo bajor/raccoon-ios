@@ -17,3 +17,9 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - run: make test
       - run: git diff --check origin/main...HEAD
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-traces
+          path: test-results/
+          retention-days: 3
