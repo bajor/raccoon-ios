@@ -35,3 +35,14 @@ result of an already committed import. Tests await one synchronous browser-state
 read from Node-side polling before deleting their selected-folder fixtures. This
 avoids the WebKit asynchronous locator-assertion path without synthetic uploads,
 retries, longer timeouts or reduced coverage. CI retains failure traces for diagnosis.
+
+### 2026-10-18: confirmed native-upload driver race
+
+Later retained traces established that the pending call was native
+`setInputFiles`, not the following status evaluation: the application had already
+imported successfully. Playwright 1.64.1 can send native assignment before its
+directory `input` listener is installed. Tests backport the exact acknowledged
+listener change from [upstream fix #43385](https://github.com/microsoft/playwright/pull/43385),
+commit `be8d329ef15914f7a0001e2d95828c995d6cca6b`, with guards for the exact pinned
+version and compiled method. Remove the backport after a stable upgrade includes
+that fix. Directory uploads, native events, timeouts and retry count are unchanged.

@@ -8,6 +8,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build --base=./ && node scripts/build-worker.mjs",
     "preview": "vite preview --host 0.0.0.0",
+    "pretest": "node scripts/patch-playwright.mjs",
     "test": "playwright test",
     "check": "npm run build && npm test && node scripts/lint-docs.mjs && git diff --check HEAD"
   },
