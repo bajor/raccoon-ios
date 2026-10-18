@@ -1,0 +1,5 @@
+{
+  "name": "Raccoon Reader", "short_name": "Raccoon", "start_url": "./", "scope": "./",
+  "display": "standalone", "background_color": "#10171d", "theme_color": "#10171d",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
