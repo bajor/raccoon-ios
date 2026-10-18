@@ -26,6 +26,7 @@ export class Reader {
   private diagramMode = false;
   private diagramIndex = 0;
   private suppressRead = false;
+  private narrativeKey: string | undefined;
   private disposed = false;
   private readonly keyboard = (event: KeyboardEvent): void => this.key(event);
 
@@ -113,6 +114,9 @@ export class Reader {
   }
 
   private renderNarrative(): void {
+    const key = this.readKey;
+    const scroll = this.narrativeKey === key ? this.narrativeBody.scrollTop : 0;
+    this.narrativeKey = key;
     this.narrative.hidden = !this.settings.narrative;
     const read = this.progress.has(this.readKey);
     const bar = element('div', '', 'toolbar');
@@ -132,7 +136,7 @@ export class Reader {
     const end = element('p', 'End of explanation', 'end-marker');
     this.narrativeBody.replaceChildren(...paragraphs, end);
     this.narrative.replaceChildren(bar, this.narrativeBody);
-    const key = this.readKey;
+    this.narrativeBody.scrollTop = scroll;
     this.observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting) && !this.suppressRead && this.settings.narrative && this.readKey === key) {
         this.observer?.disconnect(); void this.saveRead(true);
@@ -201,7 +205,9 @@ export class Reader {
   }
 
   private changeThread(direction: number): void {
-    this.threadIndex = Math.max(0, Math.min(this.manifest.content.threads.length - 1, this.threadIndex + direction));
+    const index = Math.max(0, Math.min(this.manifest.content.threads.length - 1, this.threadIndex + direction));
+    if (index === this.threadIndex) return;
+    this.threadIndex = index;
     this.stageIndex = null; this.cursor = 0; this.suppressRead = false; this.selectStageDiagram(); this.renderThread();
   }
 

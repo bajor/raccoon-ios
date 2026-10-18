@@ -33,13 +33,14 @@ export class CodeView {
     this.lineHeight = fontSize * LINE_HEIGHT_FACTOR;
     cancelAnimationFrame(this.frame);
     this.frame = requestAnimationFrame(() => {
+      this.render();
       this.node.scrollTop = Math.max(0, ((start + end) / 2 - 1) * this.lineHeight - this.node.clientHeight / 2);
       this.render();
     });
   }
 
   private render(): void {
-    const first = Math.max(0, Math.floor(this.node.scrollTop / this.lineHeight) - OVERSCAN_LINES);
+    const first = Math.min(this.lines.length, Math.max(0, Math.floor(this.node.scrollTop / this.lineHeight) - OVERSCAN_LINES));
     const last = Math.min(this.lines.length, Math.ceil((this.node.scrollTop + this.node.clientHeight) / this.lineHeight) + OVERSCAN_LINES);
     const top = element('div'); top.style.height = `${first * this.lineHeight}px`;
     const bottom = element('div'); bottom.style.height = `${(this.lines.length - last) * this.lineHeight}px`;

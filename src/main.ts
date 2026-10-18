@@ -11,6 +11,7 @@ const status = element('p', '', 'status');
 status.setAttribute('role', 'status');
 const catalog = element('main');
 let reader: Reader | undefined;
+let viewVersion = 0;
 let settings = loadSettings();
 applySettings(settings);
 const input = element('input');
@@ -62,9 +63,12 @@ function repositoryCard(library: Library): HTMLElement {
     card.append(element('p', `Snapshot ${manifest.source.headSha.slice(0, 10)} · ${manifest.content.threads.length} threads`));
     card.append(element('p', `${manifest.source.branch} · generated ${manifest.createdAt.slice(0, 10)}`));
     card.append(button(`Open PR #${manifest.source.pr}`, async () => {
+      const version = ++viewVersion;
       try {
+        const progress = await readProgress();
+        if (version !== viewVersion) return;
         reader?.dispose();
-        reader = new Reader(artifact, settings, await readProgress(), updateSettings, () => { void render().catch(showError); }, showError);
+        reader = new Reader(artifact, settings, progress, updateSettings, () => { void render().catch(showError); }, showError);
         catalog.replaceChildren(reader.node);
         status.textContent = `${library.repository} · pinned ${manifest.source.headSha.slice(0, 10)}`;
       } catch (error) { showError(String(error)); }
@@ -74,8 +78,10 @@ function repositoryCard(library: Library): HTMLElement {
 }
 
 async function render(): Promise<void> {
+  const version = ++viewVersion;
   reader?.dispose(); reader = undefined;
   const data = await libraries();
+  if (version !== viewVersion) return;
   catalog.replaceChildren(...data.map(repositoryCard));
   if (!data.length) catalog.append(element('p', 'In GitSync, select the PR branch and synchronize. Then import its raccoon-artifacts folder here.'));
 }
