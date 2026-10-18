@@ -4,3 +4,4 @@
 
 - Verify and atomically cache local artifact-folder imports without uploading source.
 - Preserve previous imports on failure and reset only replaced generations' progress.
+- Keep import completion independent of optional persistence permission and retain browser failure traces.
