@@ -1,0 +1,11 @@
+:root { color-scheme: dark; font: 16px/1.55 system-ui, sans-serif; color: #e0e8eb; background: #10171d; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: env(safe-area-inset-top) 1.25rem env(safe-area-inset-bottom); }
+header { border-bottom: 2px solid #83dcc0; padding: 1rem 0; }
+h1 { font: 700 1.5rem ui-monospace, monospace; letter-spacing: .18em; color: #83dcc0; }
+button, input { font: inherit; }
+button { padding: .5rem .8rem; border: 1px solid #647781; border-radius: 3px; background: #22313c; color: inherit; cursor: pointer; }
+button:hover, button:focus-visible { border-color: #83dcc0; outline-color: #83dcc0; }
+.status { white-space: pre-wrap; overflow-wrap: anywhere; color: #d9c493; }
+.card { margin: 1rem 0; border: 1px solid #42545d; border-radius: 4px; padding: 1rem; }
+main { max-width: 80rem; margin: auto; }
