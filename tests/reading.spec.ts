@@ -101,6 +101,26 @@ test('expanded diagrams fit and reselect layout after rotation', async ({ page }
   await expect(dialog).toBeHidden();
 });
 
+test.describe('diagram scroll locking', () => {
+  // Playwright cannot send wheel input in mobile WebKit emulation.
+  test.use({ isMobile: false });
+  for (const close of ['button', 'Escape'] as const) test(`wheel input preserves article position through ${close}`, async ({ page }) => {
+    await openReader(page, { long: true });
+    const trigger = page.getByRole('button', { name: 'Expand diagram: Request path', exact: true });
+    await trigger.scrollIntoViewIfNeeded();
+    const before = await trigger.boundingBox();
+    const scroll = await page.evaluate(() => window.scrollY);
+    await trigger.click();
+    await page.getByRole('dialog').getByRole('img', { name: 'Request path' }).hover();
+    await page.mouse.wheel(0, 600);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(Math.abs((await trigger.boundingBox())!.y - before!.y)).toBeLessThan(2);
+    if (close === 'button') await page.getByRole('button', { name: 'Close diagram', exact: true }).click();
+    else await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scroll);
+  });
+});
+
 test('print includes complete article figures and excludes controls', async ({ page }) => {
   await openReader(page, { twoChapters: true });
   await page.getByRole('button', { name: 'Expand diagram: Request path', exact: true }).first().click();

@@ -23,6 +23,9 @@ Content Security Policy is defense in depth, not a substitute for safe rendering
 chapter progress. `src/diagrams.ts` owns image URLs, automatic layout selection and
 the fitted modal dialog. `src/settings.ts` owns local theme and article text size.
 The `raccoon-articles` IndexedDB database has no old workspace adapter or migration.
+Diagram dialogs fix the background body at its reading position on screens only;
+close, Escape and disposal restore document scrolling. Print media keeps the body
+in normal flow and overrides both light and dark screen color schemes.
 
 <!-- mermaid-diagram: article-components -->
 ```mermaid

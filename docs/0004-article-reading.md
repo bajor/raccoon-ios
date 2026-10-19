@@ -55,7 +55,7 @@ printer checks are reported explicitly rather than inferred from desktop automat
 
 ## Verification, 2026-10-19
 
-Local Chromium passes 21 browser scenarios. The generated synthetic English
+Local Chromium passes 23 browser scenarios. The generated synthetic English
 article was inspected in portrait, landscape and A4 PDF output. A derived stress
 fixture with 10 chapters, 70 excerpts and 10 diagrams had no horizontal overflow
 at 390 CSS pixels; its 112-page PDF had no text outside page bounds. These are
@@ -63,3 +63,10 @@ synthetic checks, not a real private-PR generation or physical printer test.
 
 Local WebKit cannot launch on Ubuntu 25.04 because required libraries, including
 `libicu74`, are unavailable. Supported-runner CI remains the WebKit merge gate.
+
+Review regressions reproduce wheel-driven background movement and dark-theme
+page margins. Wheel tests use desktop input because Playwright cannot synthesize
+wheel events in mobile WebKit. A native DevTools touch-swipe check in Chromium
+mobile emulation preserves the article position and verifies disposal unlocks it.
+Dark-theme A4 PDFs with the dialog open and closed retain identical full text;
+all 14 pages have white margin samples after the print-specific color-scheme fix.

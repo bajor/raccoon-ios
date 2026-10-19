@@ -39,16 +39,20 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; pa
 .chapter-end { opacity: .7; }
 .reading-exit { position: fixed; top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right)); z-index: 2; }
 :root[data-reading="true"] .app-header, :root[data-reading="true"] .status, :root[data-reading="true"] .reading-controls { display: none; }
-.diagram-dialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); border: 0; background: var(--bg); color: var(--fg); }
+.diagram-dialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); border: 0; background: var(--bg); color: var(--fg); overscroll-behavior: contain; touch-action: none; }
 .diagram-dialog[open] { display: flex; flex-direction: column; gap: 1rem; }
 .dialog-controls { flex: 0 0 auto; justify-content: space-between; }
 .dialog-controls h2 { margin: 0; font-size: 1rem; }
 .diagram-stage { min-height: 0; flex: 1; overflow: hidden; }
 .dialog-image { display: block; width: 100%; height: 100%; object-fit: contain; background: white; }
+@media screen {
+  :root[data-diagram-open="true"] { overflow: hidden; }
+  :root[data-diagram-open="true"] body { position: fixed; width: 100%; top: var(--diagram-scroll-top); left: var(--diagram-scroll-left); }
+}
 @media (max-width: 700px) { body { padding-inline: .75rem; } .app-header { gap: .5rem; } input[type="file"] { max-width: 100%; } .book { margin-top: 2rem; } .book h1 { font-size: 1.7em; } }
 @page { size: A4; margin: 16mm; }
 @media print {
-  :root { color-scheme: light; color: black; background: white; }
+  :root, :root[data-theme="dark"] { color-scheme: light; color: black; background: white; }
   body { padding: 0; }
   .app-header, .status, .reading-controls, .reading-exit, .diagram-dialog { display: none !important; }
   main, .book { max-width: none; margin: 0; }
