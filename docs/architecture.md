@@ -19,10 +19,25 @@ DOM elements. The static host serves the application, not private artifacts.
 No runtime library calls a network API with imported content. A restrictive
 Content Security Policy is defense in depth, not a substitute for safe rendering.
 
-`src/reader.ts` owns thread, stage and ordered-reference navigation, diagram
-selection and the bottom narrative. `src/code-view.ts` renders a virtual viewport
-over the complete imported file. `src/settings.ts` owns local display preferences.
-Reading markers are separate from source assets in IndexedDB.
+`src/reader.ts` renders a continuous article, contents, exact inline excerpts and
+chapter progress. `src/diagrams.ts` owns image URLs, automatic layout selection and
+the fitted modal dialog. `src/settings.ts` owns local theme and article text size.
+The `raccoon-articles` IndexedDB database has no old workspace adapter or migration.
+
+<!-- mermaid-diagram: article-components -->
+```mermaid
+flowchart LR
+    Files[Local Files selection] --> Import[Contract, checksum and static SVG validation]
+    Import --> Database[Article database]
+    Database --> Reader[Ordered article DOM]
+    Reader --> Excerpt[Exact Git range text]
+    Reader --> Diagrams[Fitted static images and dialog]
+    Reader --> Print[Print stylesheet]
+```
+<!-- /mermaid-diagram: article-components -->
+
+This component view is inspection-maintained. Browser integration tests check
+literal content, import transactions, dialog fitting and print/offline behavior.
 
 `scripts/build-worker.mjs` emits an offline worker from the production build's
 static asset list. It never receives imported content. Navigation falls back to

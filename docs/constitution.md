@@ -1,10 +1,15 @@
 ---
 type: Constitution
 description: The approved client-only, thread-first Raccoon reader scope.
-status: Ratified
+status: Amended
 ---
 
 # Reader constitution
+
+Amendment, 2026-10-19: use one continuous English article, with functional chapters,
+inline code/diagrams, distraction-free Read mode and paper output. History is
+chapter prose, not navigation. The user explicitly removed backward compatibility
+and requested deletion of the old workspace. The client-only boundary below is unchanged.
 
 Help a human understand agent-written PRs from complete local artifacts. Threads
 are the primary navigation; current state opens first and history is optional.

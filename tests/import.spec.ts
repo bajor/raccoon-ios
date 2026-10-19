@@ -34,6 +34,8 @@ test('denied persistence does not report a committed import as failed', async ({
 for (const [name, option, message] of [
   ['modified source bytes', { corrupt: true }, 'Checksum mismatch'],
   ['missing source asset', { missing: true }, 'Incomplete folder'],
+  ['unsupported package version', { version: 1 }, 'Unsupported artifact version'],
+  ['diagram viewport mismatch', { viewportMismatch: true }, 'Diagram viewport mismatch'],
 ] as const) {
   test(`failed replacement preserves cache: ${name}`, async ({ page }) => {
     await importData(page);
@@ -67,10 +69,10 @@ test('CSS-escaped external SVG paint is rejected before caching', async ({ page 
 
 test('new generation resets only the replaced PR’s progress', async ({ page }) => {
   await importData(page, { twoPrs: true });
-  const keys = [1, 2].map((pr) => JSON.stringify(['bajor/example', pr, generation, 'flow', 'current']));
+  const keys = [1, 2].map((pr) => JSON.stringify(['bajor/example', pr, generation, 'flow']));
   await page.evaluate(async (keys) => {
     const db = await new Promise<IDBDatabase>((resolve) => {
-      const request = indexedDB.open('raccoon'); request.onsuccess = () => resolve(request.result);
+      const request = indexedDB.open('raccoon-articles'); request.onsuccess = () => resolve(request.result);
     });
     await new Promise<void>((resolve) => {
       const transaction = db.transaction('progress', 'readwrite');
@@ -82,7 +84,7 @@ test('new generation resets only the replaced PR’s progress', async ({ page })
   await importData(page, { snapshot: replacement, twoPrs: true });
   const remaining = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve) => {
-      const request = indexedDB.open('raccoon'); request.onsuccess = () => resolve(request.result);
+      const request = indexedDB.open('raccoon-articles'); request.onsuccess = () => resolve(request.result);
     });
     const keys = await new Promise<IDBValidKey[]>((resolve) => {
       const request = db.transaction('progress').objectStore('progress').getAllKeys(); request.onsuccess = () => resolve(request.result);

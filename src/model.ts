@@ -8,5 +8,5 @@ export interface Library {
   repository: string;
   artifacts: ImportedArtifact[];
 }
-export const progressKey = (repository: string, pr: number, generation: string, thread: string, stage: string): string =>
-  JSON.stringify([repository.toLowerCase(), pr, generation, thread, stage]);
+export const progressKey = (repository: string, pr: number, generation: string, chapter: string): string =>
+  JSON.stringify([repository.toLowerCase(), pr, generation, chapter]);

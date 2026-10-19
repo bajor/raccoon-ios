@@ -1,7 +1,8 @@
 ---
 type: BDR
 description: Read current functional threads, optional history and exact files offline with local progress.
-status: Accepted
+status: Superseded
+superseded_by: "0004"
 ---
 
 # Thread-first reading

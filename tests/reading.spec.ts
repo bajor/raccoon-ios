@@ -10,97 +10,135 @@ async function openReader(page: Page, options: Parameters<typeof folder>[0] = {}
     await page.getByLabel('Import raccoon-artifacts folder').setInputFiles(root);
     await expect.poll(() => page.evaluate(() => document.querySelector('[role="status"]')?.textContent)).toContain('Imported bajor/example.');
   } finally { await rm(dirname(root), { recursive: true, force: true }); }
-  const open = page.getByRole('button', { name: 'Open PR #1', exact: true });
+  const open = page.getByRole('button', { name: 'Open article #1', exact: true });
   if (double) await open.dblclick(); else await open.click();
-  await expect(page.getByRole('heading', { name: 'Request flow · Final state', exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Learning article' })).toBeVisible();
 }
 
-test('opens final state with full literal source instead of executing HTML', async ({ page }) => {
-  await openReader(page);
-  await expect(page.getByRole('heading', { name: 'Request flow · Final state', exact: true })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Complete source file' })).toContainText('<script>window.leaked = true</script>');
-  await expect(page.getByLabel('Explanation')).toContainText('<img src=x onerror="window.leaked=true">');
+test('all chapters and historical evidence form one literal article', async ({ page }) => {
+  const external: string[] = [];
+  page.on('request', (request) => { if (!request.url().startsWith('http://127.0.0.1:4173') && !request.url().startsWith('blob:')) external.push(request.url()); });
+  await openReader(page, { twoChapters: true });
+  const article = page.getByRole('article', { name: 'Learning article' });
+  await expect(article.getByRole('heading', { name: '1. Request flow', exact: true })).toBeVisible();
+  await expect(article.getByRole('heading', { name: '2. Response formatting', exact: true })).toBeVisible();
+  await expect(article).toContainText('<script>window.leaked = true</script>');
+  await expect(article).toContainText('<img src=x onerror="window.leaked=true">');
+  await expect(article).toContainText('old handler');
   expect(await page.evaluate(() => 'leaked' in window)).toBe(false);
+  expect(external).toEqual([]);
 });
 
-test('historical stage shows its complete older file', async ({ page }) => {
-  await openReader(page);
-  await page.getByText('History map and commit shortcuts', { exact: true }).click();
-  await page.getByRole('button', { name: 'Before PR · 00000000 Existing handler', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Complete source file' })).toContainText('old context');
-  await expect(page.getByText('src/main.ts · 0000000000 · lines 1-1 · 2 total', { exact: true })).toBeVisible();
+test('code appears at each authored position and shows only the referenced range', async ({ page }) => {
+  await openReader(page, { long: true });
+  const blocks = page.locator('.article-section').first();
+  await expect(blocks.locator('pre')).toHaveCount(2);
+  await expect(blocks.locator('pre').first()).toContainText('handler line 500\nhandler line 501\nhandler line 502\nhandler line 503');
+  await expect(blocks.locator('pre').first()).not.toContainText('handler line 499');
+  const explanation = blocks.getByText('The same handler is used again.', { exact: true });
+  const firstCode = await blocks.locator('pre').first().boundingBox();
+  const bridge = await explanation.boundingBox();
+  const secondCode = await blocks.locator('pre').nth(1).boundingBox();
+  const diagram = await blocks.getByRole('button', { name: 'Expand diagram: Request path', exact: true }).boundingBox();
+  expect(firstCode!.y + firstCode!.height).toBeLessThan(bridge!.y);
+  expect(bridge!.y + bridge!.height).toBeLessThan(secondCode!.y);
+  expect(secondCode!.y + secondCode!.height).toBeLessThan(diagram!.y);
 });
 
-test('repeated references remain distinct ordered navigation positions', async ({ page }) => {
+test('Read hides controls and touch reveals a usable exit', async ({ page }) => {
   await openReader(page);
-  await expect(page.getByText('Reference 1/2', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Next reference', exact: true }).click();
-  await expect(page.getByText('Reference 2/2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Read', exact: true }).click();
+  await expect(page.getByLabel('Import raccoon-artifacts folder')).toBeHidden();
+  await expect(page.getByLabel('Display preferences')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Library', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Show controls', exact: true })).toBeHidden();
+  await page.locator('.introduction').click();
+  await page.getByRole('button', { name: 'Show controls', exact: true }).click();
+  await expect(page.getByLabel('Display preferences')).toBeVisible();
 });
 
-test('keyboard toggles narrative while diagram navigation remains available', async ({ page }) => {
-  await openReader(page);
-  await page.keyboard.press('n');
-  await expect(page.getByLabel('Explanation')).toBeHidden();
-  await page.keyboard.press('d');
-  await expect(page.getByRole('img', { name: 'Request path', exact: true })).toBeVisible();
+test('concurrent opens install one keyboard handler', async ({ page }) => {
+  await openReader(page, {}, true);
+  await page.keyboard.press('f');
+  await expect(page.getByRole('button', { name: 'Read', exact: true })).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Read', exact: true })).toBeVisible();
 });
 
-test('reaching the explanation end persists its read marker', async ({ page }) => {
+test('Read preserves the current excerpt position', async ({ page }) => {
+  await openReader(page, { long: true });
+  const excerpt = page.locator('pre').first();
+  await excerpt.scrollIntoViewIfNeeded();
+  const before = (await excerpt.boundingBox())!.y;
+  await page.keyboard.press('f');
+  await expect.poll(async () => Math.abs((await excerpt.boundingBox())!.y - before)).toBeLessThan(2);
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => Math.abs((await excerpt.boundingBox())!.y - before)).toBeLessThan(2);
+});
+
+test('larger article text persists across reload', async ({ page }) => {
   await openReader(page);
-  await page.getByText('End of explanation', { exact: true }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole('button', { name: 'Mark unread', exact: true })).toBeVisible();
-  const key = JSON.stringify(['bajor/example', 1, generation, 'flow', 'current']);
-  expect(await page.evaluate(async (key) => {
-    const db = await new Promise<IDBDatabase>((resolve) => { const request = indexedDB.open('raccoon'); request.onsuccess = () => resolve(request.result); });
+  const before = (await page.locator('.introduction').boundingBox())!.height;
+  await page.getByRole('button', { name: 'Larger text', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Open article #1', exact: true }).click();
+  await expect.poll(async () => (await page.locator('.introduction').boundingBox())!.height).toBeGreaterThan(before);
+});
+
+test('expanded diagrams fit and reselect layout after rotation', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await openReader(page);
+  await page.getByRole('button', { name: 'Expand diagram: Request path', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Request path' });
+  const image = dialog.getByRole('img', { name: 'Request path' });
+  await expect(image).toHaveAttribute('data-layout', 'landscape');
+  await page.setViewportSize({ width: 600, height: 1000 });
+  await expect(image).toHaveAttribute('data-layout', 'portrait');
+  const bounds = await image.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(600); expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1000);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+});
+
+test('print includes complete article figures and excludes controls', async ({ page }) => {
+  await openReader(page, { twoChapters: true });
+  await page.getByRole('button', { name: 'Expand diagram: Request path', exact: true }).first().click();
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.getByLabel('Import raccoon-artifacts folder')).toBeHidden();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.print-diagram').first()).toBeVisible();
+  await expect(page.locator('.print-diagram').first()).toHaveAttribute('data-layout', 'portrait');
+  await expect(page.getByRole('heading', { name: '2. Response formatting', exact: true })).toBeVisible();
+  await expect(page.getByRole('article')).toContainText('old handler');
+});
+
+test('chapter completion persists locally', async ({ page }) => {
+  await openReader(page);
+  await page.getByText('End of chapter 1', { exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Mark unread: Request flow', exact: true })).toBeAttached();
+  const key = JSON.stringify(['bajor/example', 1, generation, 'flow']);
+  await expect.poll(() => page.evaluate(async (key) => {
+    const db = await new Promise<IDBDatabase>((resolve) => { const request = indexedDB.open('raccoon-articles'); request.onsuccess = () => resolve(request.result); });
     const value = await new Promise<unknown>((resolve) => { const request = db.transaction('progress').objectStore('progress').get(key); request.onsuccess = () => resolve(request.result); });
     db.close(); return value;
   }, key)).toBe(true);
 });
 
-test('cached application and source reopen offline', async ({ page, context }) => {
+test('manual unread is not undone by contents navigation', async ({ page }) => {
+  await openReader(page);
+  await page.getByText('End of chapter 1', { exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole('button', { name: 'Mark unread: Request flow', exact: true }).click();
+  await page.getByRole('link', { name: 'Request flow', exact: true }).click();
+  await page.getByText('End of chapter 1', { exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Mark read: Request flow', exact: true })).toBeAttached();
+});
+
+test('cached application and article reopen offline', async ({ page, context }) => {
   await openReader(page);
   await page.evaluate(async () => navigator.serviceWorker.ready);
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await context.setOffline(true);
-  await page.reload();
-  await page.getByRole('button', { name: 'Open PR #1', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Complete source file' })).toContainText('export function handler()');
-});
-
-test('first source view reaches a reference deep inside a complete file', async ({ page }) => {
-  await openReader(page, { long: true });
-  await expect(page.getByRole('region', { name: 'Complete source file' })).toContainText('handler line 500');
-});
-
-test('selecting a late reference preserves surrounding narrative position', async ({ page }) => {
-  await openReader(page, { long: true });
-  const last = page.getByRole('button', { name: 'src/main.ts:500-503', exact: true }).last();
-  await last.click();
-  await expect(last).toBeInViewport();
-});
-
-test('no-op thread selection does not undo manual unread', async ({ page }) => {
-  await openReader(page);
-  await page.getByText('End of explanation', { exact: true }).scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: 'Mark unread', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Mark read', exact: true })).toBeVisible();
-  await page.keyboard.press('K');
-  await page.getByRole('button', { name: 'Open thread Request flow', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Mark read', exact: true })).toBeVisible();
-});
-
-test('concurrent PR opens install only one keyboard handler', async ({ page }) => {
-  await openReader(page, {}, true);
-  await page.keyboard.press('n');
-  await expect(page.getByLabel('Explanation')).toBeHidden();
-});
-
-test('hiding and showing the same explanation preserves narrative position', async ({ page }) => {
-  await openReader(page, { long: true });
-  const end = page.getByText('End of explanation', { exact: true });
-  await end.scrollIntoViewIfNeeded();
-  await page.keyboard.press('n');
-  await page.keyboard.press('n');
-  await expect(end).toBeInViewport();
+  await context.setOffline(true); await page.reload();
+  await page.getByRole('button', { name: 'Open article #1', exact: true }).click();
+  await expect(page.getByRole('article')).toContainText('export function handler()');
 });
