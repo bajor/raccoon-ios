@@ -5,6 +5,7 @@
 - Replace the workspace with continuous English articles, inline Git excerpts and chapter contents.
 - Add distraction-free Read mode, automatic fullscreen diagram fitting and paper printing.
 - Remove stage/reference navigation, virtual file panes, manual zoom and version-1 support.
+- Run CI once per pull request update, while retaining checks on pushes to main.
 
 ## [0.1.0] - 2026-10-18
 
