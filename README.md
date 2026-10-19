@@ -9,8 +9,13 @@ historical: there is no native iOS app, Xcode project or TestFlight build.
    select the analyzed PR branch.
 2. Open [the reader](https://bajor.github.io/raccoon-ios/) in Safari (iPadOS 18.4+).
    Optionally add it to the Home Screen.
-3. Select **Import raccoon-artifacts folder** and choose that folder in Files.
-4. After changing branches or synchronizing in GitSync, select the folder again.
+3. Select **Import raccoon-artifacts folder** and choose that version-2 folder in Files.
+4. Open an article, adjust text size, then press **Read**. Tap the page to reveal
+   **Show controls**, or press Escape to exit reading mode.
+5. Tap an inline diagram for a screen-filling, automatically fitted view. Rotate
+   the device to change the fit; no manual zoom is needed. **Print** prints the
+   complete article, inline code and page-fitted diagrams without application controls.
+6. After changing branches or synchronizing in GitSync, select the folder again.
    Imports are snapshots, not a live connection to a directory.
 
 The application host receives no imported code. Imports, settings and reading
@@ -20,6 +25,10 @@ An empty repository catalog removes that repository's previously cached PRs.
 Regenerated snapshots reset only the regenerated PR's reading progress.
 Checksums detect incomplete or modified assets, not the identity of their author
 or the truth of AI explanations. Import only repositories you intend to read.
+
+This redesign accepts version 2 only. Older artifacts require explicit removal
+and regeneration through Raccoon. Old browser data is not migrated or deleted;
+the new article database is separate.
 
 Use Raccoon beside ChatGPT with repository context for questions, and Freeform or
 another notes app for your own diagrams and notes. No chat service is embedded here.
@@ -37,15 +46,12 @@ Playwright 1.64.1 directory-upload fix is applied. See [the recorded driver race
 `npm run dev` starts the application. `npm run build` creates relative-path static
 assets for GitHub Pages. No backend, GitHub credential or model key is used.
 
-Open a PR and choose a functional thread. The final explanation opens first, with
-the complete referenced file. Use **History map and commit shortcuts** for older
-stages, **Show diagrams** for that thread's diagrams, and **Hide narrative** for
-more code space. Repeated references keep their own ordered navigation positions.
-Reading the explanation's end marks it read. **Mark unread** keeps it unread until
-you leave that explanation. Theme, text size and narrative visibility are local.
+Articles are English, with contents and functional chapters. Code excerpts and
+history are part of the continuous explanation, not separate panes or navigation.
+Reading a chapter's end marks it read. **Mark unread** keeps it unread until the
+article is reopened. Theme and article text size are local.
 
-Keyboard: `j/k` references, `h/l` stages, `J/K` threads, `g` final state, `n` narrative,
-`d` diagrams/code, `t` history, `?` help. Buttons support the same actions on touch.
+Keyboard: `f` toggles Read mode; Escape closes a diagram or returns controls.
 After one successful online load, the application shell and imported data can be
 used offline. Browser eviction can still remove either cache. Close and reopen the
 reader online to activate an available application update.

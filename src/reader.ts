@@ -1,225 +1,133 @@
 import { element, button } from './dom';
-import { CodeView } from './code-view';
+import { Diagrams } from './diagrams';
 import { markRead } from './storage';
 import { progressKey, type ImportedArtifact } from './model';
 import type { Artifact, Block } from './vendor/contract';
-import type { Settings } from './settings';
 
-type Thread = Artifact['content']['threads'][number];
+type Chapter = Artifact['content']['chapters'][number];
 
 export class Reader {
   readonly node = element('section', '', 'reader');
-  private readonly source: CodeView;
-  private readonly workspace = element('div', '', 'workspace');
-  private readonly fileLabel = element('p', '', 'file-label');
-  private readonly narrative = element('section', '', 'narrative');
-  private readonly narrativeBody = element('div', '', 'narrative-body');
-  private readonly tabs = element('div', '', 'toolbar');
-  private readonly history = element('details', '', 'timeline');
-  private readonly threadList = element('nav', '', 'threads');
-  private readonly title = element('h2');
-  private readonly urls = new Map<string, string>();
-  private observer: IntersectionObserver | undefined;
-  private threadIndex = 0;
-  private stageIndex: number | null = null;
-  private cursor = 0;
-  private diagramMode = false;
-  private diagramIndex = 0;
-  private suppressRead = false;
-  private narrativeKey: string | undefined;
-  private narrativeScroll = 0;
+  private readonly article = element('article', '', 'book');
+  private readonly diagrams: Diagrams;
+  private readonly exit = button('Show controls', () => this.setReading(false));
+  private readonly markers = new Map<string, { link: HTMLAnchorElement; button: HTMLButtonElement; title: string }>();
+  private readonly suppressed = new Set<string>();
+  private readonly files = new Map<string, string[]>();
+  private readonly observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) if (entry.isIntersecting) {
+      const key = (entry.target as HTMLElement).dataset.progress!;
+      if (!this.suppressed.has(key)) void this.saveRead(key, true);
+    }
+  }, { threshold: 1 });
   private disposed = false;
-  private readonly keyboard = (event: KeyboardEvent): void => this.key(event);
+  private readonly keyboard = (event: KeyboardEvent): void => {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || this.diagrams.dialog.open ||
+      (event.target instanceof HTMLElement && event.target.closest('input,select,textarea,[contenteditable]'))) return;
+    if (event.key === 'Escape' || event.key === 'f') {
+      event.preventDefault(); this.setReading(event.key === 'f' && !this.reading);
+    }
+  };
 
-  constructor(private readonly artifact: ImportedArtifact, private settings: Settings,
-    private readonly progress: Set<string>, private readonly onSettings: (settings: Settings) => void,
+  constructor(private readonly artifact: ImportedArtifact, private readonly progress: Set<string>,
     onClose: () => void, private readonly onError: (message: string) => void) {
-    this.source = new CodeView(settings.fontSize);
-    const source = artifact.manifest.source;
-    const bar = element('div', '', 'toolbar');
-    bar.append(button('Library', onClose), element('strong', `#${source.pr} ${source.title}`), button('Keys ?', () => this.help()));
-    this.history.append(element('summary', 'History map and commit shortcuts'));
-    this.narrative.setAttribute('aria-label', 'Explanation');
-    this.narrativeBody.tabIndex = 0;
-    this.node.append(bar, this.threadList, this.title, this.history, this.tabs, this.fileLabel, this.workspace, this.narrative);
-    window.addEventListener('keydown', this.keyboard);
-    this.selectStageDiagram();
-    this.renderThread();
-  }
-
-  private get manifest(): Artifact { return this.artifact.manifest; }
-  private get thread(): Thread { return this.manifest.content.threads[this.threadIndex]!; }
-  private get blocks(): Block[] { return this.stageIndex === null ? this.thread.current : this.thread.stages[this.stageIndex]!.blocks; }
-  private get orderedRefs(): Array<{ id: string; block: number; position: number }> {
-    return this.blocks.flatMap((block, i) => block.refs.map((id, position) => ({ id, block: i, position })));
-  }
-  private get stage(): string { return this.stageIndex === null ? 'current' : this.thread.stages[this.stageIndex]!.commit; }
-  private get readKey(): string {
-    const source = this.manifest.source;
-    return progressKey(source.repository, source.pr, this.manifest.generation, this.thread.id, this.stage);
-  }
-
-  private renderThread(): void {
-    this.threadList.replaceChildren(...this.manifest.content.threads.map((thread, index) => {
-      const key = progressKey(this.manifest.source.repository, this.manifest.source.pr, this.manifest.generation, thread.id, 'current');
-      const choice = button(`${this.progress.has(key) ? '✓ ' : ''}${thread.title}`,
-        () => this.changeThread(index - this.threadIndex), `Open thread ${thread.title}`);
-      choice.setAttribute('aria-current', String(index === this.threadIndex));
-      return choice;
-    }));
-    this.renderStage();
-  }
-
-  private renderStage(): void {
-    this.observer?.disconnect();
-    this.title.textContent = this.stageIndex === null ? `${this.thread.title} · Final state` : this.thread.stages[this.stageIndex]!.title;
-    this.history.replaceChildren(element('summary', 'History map and commit shortcuts'),
-      ...this.thread.stages.map((stage, index) => {
-        const commit = this.manifest.commits.find((commit) => commit.sha === stage.commit)!;
-        return button(`${commit.phase === 'before-pr' ? 'Before PR · ' : ''}${stage.commit.slice(0, 8)} ${stage.title}`, () => this.chooseStage(index));
-      }), button('Final state', () => this.chooseStage(null)), element('p', this.manifest.content.historyNote));
-    this.tabs.replaceChildren(button('Previous reference', () => this.moveReference(-1)), button('Next reference', () => this.moveReference(1)),
-      button(this.settings.narrative ? 'Hide narrative' : 'Show narrative', () => this.toggleNarrative()),
-      button(this.diagramMode ? 'Show code' : 'Show diagrams', () => { this.diagramMode = !this.diagramMode; this.renderStage(); }),
-      element('span', `Reference ${this.cursor + 1}/${this.orderedRefs.length}`));
-    this.renderNarrative();
-    if (this.diagramMode) this.renderDiagram(); else this.showReference(this.orderedRefs[this.cursor]!.id);
-  }
-
-  private chooseStage(index: number | null): void {
-    const changed = this.stageIndex !== index;
-    this.stageIndex = index; this.cursor = 0;
-    if (changed) this.suppressRead = false;
-    this.selectStageDiagram(); this.renderStage();
-  }
-
-  private selectStageDiagram(): void {
-    const revision = this.stageIndex === null ? this.manifest.source.headSha : this.thread.stages[this.stageIndex]!.commit;
-    this.diagramIndex = Math.max(0, this.thread.diagrams.findIndex((diagram) => diagram.commit === revision));
-  }
-
-  private moveReference(direction: number): void {
-    this.cursor = Math.max(0, Math.min(this.orderedRefs.length - 1, this.cursor + direction));
-    this.diagramMode = false;
-    this.renderStage();
-    this.narrativeBody.querySelector(`[data-block="${this.orderedRefs[this.cursor]!.block}"]`)?.scrollIntoView({ block: 'nearest' });
-  }
-
-  private showReference(id: string): void {
-    const reference = this.manifest.content.references.find((reference) => reference.id === id)!;
-    const file = this.manifest.files.find((file) => file.reference === id)!;
-    const text = new TextDecoder().decode(this.artifact.assets.get(file.file)!);
-    this.fileLabel.textContent = `${reference.path} · ${reference.commit.slice(0, 10)} · lines ${reference.startLine}-${reference.endLine} · ${file.lines} total`;
-    this.workspace.replaceChildren(this.source.node);
-    this.source.show(text, reference.startLine, reference.endLine, this.settings.fontSize);
-  }
-
-  private renderNarrative(): void {
-    const key = this.readKey;
-    if (this.narrativeKey !== key) this.narrativeScroll = 0;
-    else if (!this.narrative.hidden) this.narrativeScroll = this.narrativeBody.scrollTop;
-    this.narrativeKey = key;
-    this.narrative.hidden = !this.settings.narrative;
-    const read = this.progress.has(this.readKey);
-    const bar = element('div', '', 'toolbar');
-    bar.append(element('strong', read ? '✓ Read' : 'Unread'), button(read ? 'Mark unread' : 'Mark read', () => {
-      this.suppressRead = true; void this.saveRead(!this.progress.has(this.readKey));
-    }));
-    const paragraphs = this.blocks.map((block, index) => {
-      const article = element('article', '', this.orderedRefs[this.cursor]?.block === index ? 'active-block' : '');
-      article.dataset.block = String(index);
-      article.append(element('small', block.evidence.toUpperCase()), element('p', block.text, 'essay'));
-      block.refs.forEach((id, position) => article.append(button(this.referenceLabel(id), () => {
-        this.cursor = this.orderedRefs.findIndex((item) => item.block === index && item.position === position);
-        this.diagramMode = false; this.renderStage();
-      })));
-      return article;
+    this.diagrams = new Diagrams(artifact);
+    const controls = element('div', '', 'toolbar reading-controls');
+    controls.append(button('Library', onClose), button('Read', () => this.setReading(true)), button('Print', () => window.print()),
+      element('span', 'Read hides controls. Tap the page to reveal the exit, or press Escape. F toggles reading.', 'reading-help'));
+    this.article.setAttribute('aria-label', 'Learning article'); this.article.lang = 'en'; this.article.tabIndex = -1;
+    const { content, source } = artifact.manifest;
+    const title = element('header', '', 'book-title');
+    title.append(element('p', `${source.repository} · PR #${source.pr}`, 'byline'), element('h1', content.title),
+      element('p', content.introduction, 'introduction'));
+    const contents = element('nav', '', 'contents'); contents.setAttribute('aria-label', 'Contents');
+    const list = element('ol'); contents.append(element('h2', 'Contents'), list);
+    this.article.append(title, contents);
+    content.chapters.forEach((chapter, index) => this.chapter(chapter, index, list));
+    const footer = element('footer', '', 'evidence-note');
+    footer.append(element('h2', 'Evidence and history'), element('p', content.historyNote),
+      element('p', `Source snapshot: ${source.headSha}`), element('p', `Generated ${artifact.manifest.createdAt.slice(0, 10)}. Code is copied from the pinned Git revisions, not generated by the author.`));
+    this.article.append(footer);
+    this.exit.className = 'reading-exit'; this.exit.hidden = true;
+    this.article.addEventListener('click', (event) => {
+      if (this.reading && event.target instanceof Element && !event.target.closest('a,button')) this.exit.hidden = !this.exit.hidden;
     });
-    const end = element('p', 'End of explanation', 'end-marker');
-    this.narrativeBody.replaceChildren(...paragraphs, end);
-    this.narrative.replaceChildren(bar, this.narrativeBody);
-    if (!this.narrative.hidden) this.narrativeBody.scrollTop = this.narrativeScroll;
-    this.observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting) && !this.suppressRead && this.settings.narrative && this.readKey === key) {
-        this.observer?.disconnect(); void this.saveRead(true);
-      }
-    }, { root: this.narrativeBody, threshold: 1 });
-    this.observer.observe(end);
+    this.node.append(controls, this.article, this.exit, this.diagrams.dialog);
+    window.addEventListener('keydown', this.keyboard);
   }
 
-  private referenceLabel(id: string): string {
-    const reference = this.manifest.content.references.find((reference) => reference.id === id)!;
-    return `${reference.path}:${reference.startLine}-${reference.endLine}`;
+  private chapter(chapter: Chapter, index: number, contents: HTMLOListElement): void {
+    const section = element('section', '', 'chapter'); section.id = `chapter-${chapter.id}`;
+    const heading = element('h2', `${index + 1}. ${chapter.title}`); heading.tabIndex = -1;
+    const link = element('a'); link.href = `#${section.id}`;
+    link.addEventListener('click', (event) => { event.preventDefault(); heading.focus({ preventScroll: true }); heading.scrollIntoView(); });
+    const item = element('li'); item.append(link); contents.append(item);
+    const key = progressKey(this.artifact.manifest.source.repository, this.artifact.manifest.source.pr, this.artifact.manifest.generation, chapter.id);
+    const toggle = button('', () => { this.suppressed.add(key); return this.saveRead(key, !this.progress.has(key)); });
+    toggle.className = 'reading-controls progress-control';
+    this.markers.set(key, { link, button: toggle, title: chapter.title }); this.updateMarker(key);
+    section.append(heading, element('p', chapter.summary, 'chapter-summary'), toggle);
+    for (const part of chapter.sections) {
+      const body = element('section', '', 'article-section');
+      body.append(element('h3', part.title));
+      part.blocks.forEach((block) => body.append(this.block(block, chapter.id)));
+      section.append(body);
+    }
+    const end = element('p', `End of chapter ${index + 1}`, 'chapter-end'); end.dataset.progress = key;
+    section.append(end); this.article.append(section); this.observer.observe(end);
   }
 
-  private async saveRead(read: boolean): Promise<void> {
-    const key = this.readKey;
+  private block(block: Block, chapter: string): HTMLElement {
+    if (block.kind === 'diagram') return this.diagrams.figure(chapter, block.diagram);
+    if (block.kind === 'code') return this.excerpt(block.reference);
+    const paragraph = element('p', '', 'prose');
+    if (block.evidence !== 'fact') paragraph.append(element('small', `${block.evidence === 'inference' ? 'Inference' : 'Unknown'}. `, 'evidence-label'));
+    paragraph.append(document.createTextNode(block.text));
+    return paragraph;
+  }
+
+  private excerpt(id: string): HTMLElement {
+    const manifest = this.artifact.manifest;
+    const reference = manifest.content.references.find((reference) => reference.id === id)!;
+    const file = manifest.files.find((file) => file.reference === id)!;
+    if (!this.files.has(file.file)) this.files.set(file.file, new TextDecoder().decode(this.artifact.assets.get(file.file)!).replace(/\n$/, '').split('\n'));
+    const figure = element('figure', '', 'code-excerpt');
+    const label = `${reference.path}:${reference.startLine}-${reference.endLine} · ${reference.commit.slice(0, 12)}`;
+    figure.setAttribute('aria-label', label);
+    const code = element('pre'); code.append(element('code', this.files.get(file.file)!.slice(reference.startLine - 1, reference.endLine).join('\n')));
+    figure.append(element('figcaption', label), code);
+    return figure;
+  }
+
+  private get reading(): boolean { return document.documentElement.dataset.reading === 'true'; }
+  private setReading(value: boolean): void {
+    const anchor = [...this.article.querySelectorAll<HTMLElement>('h1,h2,h3,.prose,pre,.diagram-figure')].find((node) => {
+      const bounds = node.getBoundingClientRect(); return bounds.bottom > 0 && bounds.top < window.innerHeight;
+    });
+    const top = anchor?.getBoundingClientRect().top;
+    document.documentElement.dataset.reading = String(value); this.exit.hidden = true;
+    if (anchor && top !== undefined) window.scrollBy(0, anchor.getBoundingClientRect().top - top);
+    if (value) this.article.focus({ preventScroll: true });
+  }
+
+  private updateMarker(key: string): void {
+    const marker = this.markers.get(key)!; const read = this.progress.has(key);
+    marker.link.textContent = `${read ? '✓ ' : ''}${marker.title}`;
+    marker.button.textContent = read ? 'Mark unread' : 'Mark read';
+    marker.button.setAttribute('aria-label', `${read ? 'Mark unread' : 'Mark read'}: ${marker.title}`);
+  }
+
+  private async saveRead(key: string, read: boolean): Promise<void> {
     if (this.progress.has(key) === read) return;
     try {
       await markRead(key, read);
       if (read) this.progress.add(key); else this.progress.delete(key);
-      if (!this.disposed && key === this.readKey) this.renderThread();
-    } catch (error) { this.onError(`Could not save reading progress: ${String(error)}`); }
-  }
-
-  private renderDiagram(): void {
-    const diagram = this.thread.diagrams[this.diagramIndex]!;
-    const asset = this.manifest.diagrams.find((file) => file.thread === this.thread.id && file.diagram === diagram.id)!;
-    let url = this.urls.get(asset.file);
-    if (!url) { url = URL.createObjectURL(new Blob([this.artifact.assets.get(asset.file)!], { type: 'image/svg+xml' })); this.urls.set(asset.file, url); }
-    const panel = element('div', '', 'diagram-panel');
-    const choices = element('select'); choices.setAttribute('aria-label', 'Thread diagram');
-    this.thread.diagrams.forEach((item, index) => { const option = element('option', item.title); option.value = String(index); choices.append(option); });
-    choices.value = String(this.diagramIndex);
-    choices.addEventListener('change', () => { this.diagramIndex = Number(choices.value); this.renderDiagram(); });
-    const image = element('img'); image.src = url; image.alt = diagram.title;
-    let zoom = 1;
-    const controls = element('div', '', 'toolbar');
-    controls.append(choices, button('Zoom in', () => { zoom = Math.min(4, zoom + .25); image.style.width = `${zoom * 100}%`; }),
-      button('Zoom out', () => { zoom = Math.max(.5, zoom - .25); image.style.width = `${zoom * 100}%`; }));
-    panel.append(controls, element('p', `Diagram at ${diagram.commit.slice(0, 10)}`), image);
-    for (const node of diagram.nodes) for (const id of node.refs) panel.append(button(`${node.label} · ${this.referenceLabel(id)}`, () => {
-      this.diagramMode = false; this.renderStage(); this.showReference(id);
-    }));
-    this.fileLabel.textContent = `${this.thread.title} · ${diagram.title}`;
-    this.workspace.replaceChildren(panel);
-  }
-
-  private toggleNarrative(): void {
-    this.settings = { ...this.settings, narrative: !this.settings.narrative };
-    this.onSettings(this.settings);
-  }
-
-  updateSettings(settings: Settings): void { this.settings = settings; this.renderStage(); }
-
-  private key(event: KeyboardEvent): void {
-    if (event.ctrlKey || event.metaKey || event.altKey || (event.target instanceof HTMLElement &&
-      (event.target.isContentEditable || event.target.closest('input,select,textarea')))) return;
-    const actions: Record<string, () => void> = {
-      j: () => this.moveReference(1), k: () => this.moveReference(-1),
-      h: () => this.chooseStage(this.stageIndex === null ? this.thread.stages.length - 1 : Math.max(0, this.stageIndex - 1)),
-      l: () => this.chooseStage(this.stageIndex === null || this.stageIndex === this.thread.stages.length - 1 ? null : this.stageIndex + 1),
-      J: () => this.changeThread(1), K: () => this.changeThread(-1), g: () => this.chooseStage(null),
-      n: () => this.toggleNarrative(), d: () => { this.diagramMode = !this.diagramMode; this.renderStage(); },
-      t: () => { this.history.open = !this.history.open; }, '?': () => this.help(),
-    };
-    if (actions[event.key]) { event.preventDefault(); actions[event.key]!(); }
-  }
-
-  private changeThread(direction: number): void {
-    const index = Math.max(0, Math.min(this.manifest.content.threads.length - 1, this.threadIndex + direction));
-    if (index === this.threadIndex) return;
-    this.threadIndex = index;
-    this.stageIndex = null; this.cursor = 0; this.suppressRead = false; this.selectStageDiagram(); this.renderThread();
-  }
-
-  private help(): void {
-    this.onError('Keys: j/k references · h/l stages · J/K threads · g final state · n narrative · d diagram/code · t history · ? help');
+      if (!this.disposed) this.updateMarker(key);
+    } catch (error) { if (!this.disposed) { this.setReading(false); this.onError(`Could not save reading progress: ${String(error)}`); } }
   }
 
   dispose(): void {
-    this.disposed = true; this.observer?.disconnect(); this.source.dispose();
-    window.removeEventListener('keydown', this.keyboard);
-    this.urls.forEach((url) => URL.revokeObjectURL(url));
+    this.disposed = true; this.observer.disconnect(); this.diagrams.dispose();
+    window.removeEventListener('keydown', this.keyboard); delete document.documentElement.dataset.reading;
   }
 }

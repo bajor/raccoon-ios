@@ -22,9 +22,10 @@ input.addEventListener('change', () => { void load(); });
 const header = element('header');
 header.className = 'app-header';
 const preferences = element('div', '', 'toolbar');
+preferences.setAttribute('aria-label', 'Display preferences');
 preferences.append(button('Theme', () => updateSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })),
-  button('A−', () => updateSettings({ ...settings, fontSize: Math.max(11, settings.fontSize - 1) }), 'Smaller code text'),
-  button('A+', () => updateSettings({ ...settings, fontSize: Math.min(22, settings.fontSize + 1) }), 'Larger code text'));
+  button('A−', () => updateSettings({ ...settings, fontSize: Math.max(16, settings.fontSize - 1) }), 'Smaller text'),
+  button('A+', () => updateSettings({ ...settings, fontSize: Math.min(28, settings.fontSize + 1) }), 'Larger text'));
 header.append(element('h1', 'RACCOON'), input, preferences);
 app.append(header, status, catalog);
 
@@ -59,17 +60,18 @@ function repositoryCard(library: Library): HTMLElement {
   if (!library.artifacts.length) card.append(element('p', 'No active artifacts in this repository.'));
   for (const artifact of library.artifacts) {
     const manifest = artifact.manifest;
-    card.append(element('h3', `#${manifest.source.pr} ${manifest.source.title}`));
-    card.append(element('p', `Snapshot ${manifest.source.headSha.slice(0, 10)} · ${manifest.content.threads.length} threads`));
+    card.append(element('h3', `#${manifest.source.pr} ${manifest.content.title}`));
+    card.append(element('p', `Snapshot ${manifest.source.headSha.slice(0, 10)} · ${manifest.content.chapters.length} chapters`));
     card.append(element('p', `${manifest.source.branch} · generated ${manifest.createdAt.slice(0, 10)}`));
-    card.append(button(`Open PR #${manifest.source.pr}`, async () => {
+    card.append(button(`Open article #${manifest.source.pr}`, async () => {
       const version = ++viewVersion;
       try {
         const progress = await readProgress();
         if (version !== viewVersion) return;
         reader?.dispose();
-        reader = new Reader(artifact, settings, progress, updateSettings, () => { void render().catch(showError); }, showError);
+        reader = new Reader(artifact, progress, () => { void render().catch(showError); }, showError);
         catalog.replaceChildren(reader.node);
+        window.scrollTo(0, 0);
         status.textContent = `${library.repository} · pinned ${manifest.source.headSha.slice(0, 10)}`;
       } catch (error) { showError(String(error)); }
     }));
@@ -87,7 +89,7 @@ async function render(): Promise<void> {
 }
 function showError(message: string): void { status.textContent = message; }
 function updateSettings(value: typeof settings): void {
-  settings = value; applySettings(settings); reader?.updateSettings(settings);
+  settings = value; applySettings(settings);
 }
 void render().catch((error: unknown) => { status.textContent = `Local storage unavailable: ${String(error)}`; });
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

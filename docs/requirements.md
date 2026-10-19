@@ -1,7 +1,8 @@
 ---
 type: PRD
 description: Observable requirements for local learning artifacts on iPad.
-status: Accepted
+status: Superseded
+superseded_by: "0002"
 ---
 
 # Local reading requirements

@@ -1,7 +1,7 @@
 import type { Library } from './model';
 
 const database = new Promise<IDBDatabase>((resolve, reject) => {
-  const request = indexedDB.open('raccoon', 1);
+  const request = indexedDB.open('raccoon-articles', 1);
   request.onupgradeneeded = () => {
     request.result.createObjectStore('repositories');
     request.result.createObjectStore('progress');

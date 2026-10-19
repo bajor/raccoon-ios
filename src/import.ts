@@ -1,4 +1,4 @@
-import { artifactSchema, catalogSchema, relativePath } from './vendor/contract';
+import { artifactSchema, catalogSchema, relativePath, CONTRACT_VERSION } from './vendor/contract';
 import type { Library } from './model';
 import { validateSvg } from './svg';
 
@@ -37,7 +37,11 @@ export async function importFolder(input: Iterable<File>): Promise<Library> {
     if (!file) throw new Error(`Incomplete folder: missing ${path}`);
     return file.arrayBuffer();
   };
-  const catalog = catalogSchema.parse(JSON.parse(decoder.decode(await read('catalog.json'))));
+  const inputCatalog: unknown = JSON.parse(decoder.decode(await read('catalog.json')));
+  if (typeof inputCatalog === 'object' && inputCatalog !== null && 'version' in inputCatalog && inputCatalog.version !== CONTRACT_VERSION) {
+    throw new Error('Unsupported artifact version. Regenerate this folder as a version-2 article.');
+  }
+  const catalog = catalogSchema.parse(inputCatalog);
   const library: Library = { repository: catalog.repository.toLowerCase(), artifacts: [] };
   for (const entry of catalog.artifacts) {
     const prefix = `pr-${entry.pr}/`;
@@ -58,7 +62,10 @@ export async function importFolder(input: Iterable<File>): Promise<Library> {
         if (data.byteLength !== file.bytes || lineCount(text) !== file.lines || text.includes('\0')) {
           throw new Error(`Source metadata mismatch: ${file.file}`);
         }
-      } else validateSvg(text);
+      } else {
+        const size = validateSvg(text);
+        if (size.width !== file.width || size.height !== file.height) throw new Error(`Diagram viewport mismatch: ${file.file}`);
+      }
     }
     library.artifacts.push({ manifest, assets });
   }

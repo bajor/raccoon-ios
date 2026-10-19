@@ -11,51 +11,76 @@ const digest = (data: string): string => createHash('sha256').update(data).diges
 const source = 'export function handler() {\n  return "<script>window.leaked = true</script>";\n}\n';
 const olderSource = 'old handler\nold context\n';
 const longSource = Array.from({ length: 1000 }, (_, index) => `handler line ${index + 1}\n`).join('');
-const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="#22313c"/><text x="10" y="50" fill="#fff">Handler</text></svg>';
+const svg = (width: number, height: number): string => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="#fff"/><text x="20" y="50" fill="#000">Handler</text></svg>`;
+const landscape = svg(900, 240);
+const portrait = svg(240, 900);
 
-export function manifest(pr = 1, snapshot = generation, diagram = svg, long = false): Artifact {
+export function manifest(pr = 1, snapshot = generation, diagram?: string, long = false, twoChapters = false): Artifact {
   const text = long ? longSource : source;
-  return {
-    version: 1, generation: snapshot, createdAt: '2026-10-18T00:00:00Z', profileHash: 'b'.repeat(64),
+  const result: Artifact = {
+    version: 2, generation: snapshot, createdAt: '2026-10-18T00:00:00Z', profileHash: 'b'.repeat(64),
     source: { repository: 'bajor/example', pr, title: `Handler ${pr}`, branch: 'feature', baseSha: '0'.repeat(40), mergeBaseSha: '0'.repeat(40), headSha: commit },
     commits: [{ sha: '0'.repeat(40), subject: 'Existing handler', parents: [], phase: 'before-pr' },
       { sha: commit, subject: 'Add handler', parents: ['0'.repeat(40)], phase: 'pr' }],
     changes: [{ id: 'c1', commit, path: 'src/main.ts', status: 'added' }],
     excludedCommits: [],
     content: {
+      language: 'en', title: `Handler ${pr}`, introduction: 'Follow the complete request, its source and its history in one article.',
       historyNote: 'Available relevant history inspected.',
       references: [{ id: 'r1', commit, path: 'src/main.ts', startLine: long ? 500 : 1, endLine: long ? 503 : 2 },
         { id: 'r0', commit: '0'.repeat(40), path: 'src/main.ts', startLine: 1, endLine: 1 }],
-      assignments: [{ change: 'c1', thread: 'flow' }],
-      threads: [{ id: 'flow', title: 'Request flow', summary: 'Connect the handler to its caller.',
-        current: [{ text: 'The handler accepts a request. <img src=x onerror="window.leaked=true">'.repeat(long ? 80 : 1), evidence: 'fact', refs: ['r1'] },
-          { text: 'The same handler is used again.', evidence: 'fact', refs: ['r1'] }],
-        stages: [{ commit: '0'.repeat(40), title: 'Existing handler', blocks: [{ text: 'The original caller uses this handler.', evidence: 'fact', refs: ['r0'] }] },
-          { commit, title: 'Add handler', blocks: [{ text: 'Introduce the handler.', evidence: 'fact', refs: ['r1'] }] }],
+      assignments: [{ change: 'c1', chapter: 'flow' }],
+      chapters: [{ id: 'flow', title: 'Request flow', summary: 'Connect the handler to its caller.',
+        sections: [{ commit, title: 'How the request works', blocks: [
+          { kind: 'prose', text: 'The handler accepts a request. <img src=x onerror="window.leaked=true">'.repeat(long ? 80 : 1), evidence: 'fact', refs: ['r1'] },
+          { kind: 'code', reference: 'r1' },
+          { kind: 'prose', text: 'The same handler is used again.', evidence: 'fact', refs: ['r1'] },
+          { kind: 'code', reference: 'r1' }, { kind: 'diagram', diagram: 'request' },
+        ] }, { commit: '0'.repeat(40), title: 'The original handler', blocks: [
+          { kind: 'prose', text: 'The original caller uses this handler.', evidence: 'fact', refs: ['r0'] }, { kind: 'code', reference: 'r0' },
+        ] }, { commit, title: 'Adding the handler', blocks: [
+          { kind: 'prose', text: 'Introduce the handler.', evidence: 'fact', refs: ['r1'] }, { kind: 'code', reference: 'r1' },
+        ] }],
         diagrams: [{ id: 'request', title: 'Request path', commit, nodes: [{ id: 'handler', label: 'Handler', refs: ['r1'] }], edges: [] }],
       }],
     },
     files: [{ reference: 'r1', blob: commit, sha256: digest(text), file: `files/${digest(text)}.txt`, bytes: Buffer.byteLength(text), lines: long ? 1000 : 3 },
       { reference: 'r0', blob: 'c'.repeat(40), sha256: digest(olderSource), file: `files/${digest(olderSource)}.txt`, bytes: Buffer.byteLength(olderSource), lines: 2 }],
-    diagrams: [{ thread: 'flow', diagram: 'request', file: 'diagrams/flow/request.svg', sha256: digest(diagram) }],
+    diagrams: (['landscape', 'portrait'] as const).map((layout) => ({ chapter: 'flow', diagram: 'request', layout,
+      file: `diagrams/flow/request-${layout}.svg`, sha256: digest(diagram ?? (layout === 'landscape' ? landscape : portrait)),
+      width: layout === 'landscape' ? 900 : 240, height: layout === 'landscape' ? 240 : 900 })),
   };
+  if (twoChapters) {
+    const chapter = structuredClone(result.content.chapters[0]!); chapter.id = 'response'; chapter.title = 'Response formatting';
+    result.content.chapters.push(chapter);
+    result.changes.push({ id: 'c2', commit, path: 'src/response.ts', status: 'added' });
+    result.content.assignments.push({ change: 'c2', chapter: 'response' });
+    result.diagrams.push(...result.diagrams.map((asset) => ({ ...asset, chapter: 'response', file: asset.file.replace('/flow/', '/response/') })));
+  }
+  return result;
 }
 
-export async function folder(options: { empty?: boolean; snapshot?: string; diagram?: string; corrupt?: boolean; missing?: boolean; twoPrs?: boolean; long?: boolean } = {}): Promise<string> {
+export async function folder(options: { empty?: boolean; snapshot?: string; diagram?: string; corrupt?: boolean; missing?: boolean; twoPrs?: boolean; long?: boolean; twoChapters?: boolean; version?: number; viewportMismatch?: boolean } = {}): Promise<string> {
   const root = join(await mkdtemp(join(tmpdir(), 'raccoon-browser-')), 'raccoon-artifacts');
   await mkdir(root);
-  const manifests = options.empty ? [] : [manifest(1, options.snapshot ?? generation, options.diagram ?? svg, options.long)];
+  const manifests = options.empty ? [] : [manifest(1, options.snapshot ?? generation, options.diagram, options.long, options.twoChapters)];
   if (options.twoPrs) manifests.push(manifest(2));
-  await writeFile(join(root, 'catalog.json'), JSON.stringify({ version: 1, repository: 'bajor/example',
+  await writeFile(join(root, 'catalog.json'), JSON.stringify({ version: options.version ?? 2, repository: 'bajor/example',
     artifacts: manifests.map((item) => ({ pr: item.source.pr, manifest: `pr-${item.source.pr}/manifest.json` })) }));
   for (const item of manifests) {
     const directory = join(root, `pr-${item.source.pr}`);
     await mkdir(join(directory, 'files'), { recursive: true });
-    await mkdir(join(directory, 'diagrams/flow'), { recursive: true });
     await writeFile(join(directory, 'manifest.json'), JSON.stringify(item));
     if (!options.missing) await writeFile(join(directory, item.files[0]!.file), options.corrupt ? 'tampered\n' : options.long && item.source.pr === 1 ? longSource : source);
     await writeFile(join(directory, item.files[1]!.file), olderSource);
-    await writeFile(join(directory, item.diagrams[0]!.file), options.diagram ?? svg);
+    for (const asset of item.diagrams) {
+      await mkdir(join(directory, 'diagrams', asset.chapter), { recursive: true });
+      let data = options.diagram ?? (asset.layout === 'landscape' ? landscape : portrait);
+      if (options.viewportMismatch) data = data.replace(/viewBox="[^"]+"/, 'viewBox="0 0 100 100"');
+      await writeFile(join(directory, asset.file), data);
+      if (options.viewportMismatch) asset.sha256 = digest(data);
+    }
+    if (options.viewportMismatch) await writeFile(join(directory, 'manifest.json'), JSON.stringify(item));
   }
   return root;
 }

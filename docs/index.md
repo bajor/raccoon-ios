@@ -4,6 +4,11 @@ okf_version: "0.1"
 
 # Reader documentation
 
+- [Article requirements](/0002-article-requirements.md)
+- [Article architecture decision](/0003-article-decision.md)
+- [Continuous reading behavior](/0004-article-reading.md)
+- [Article implementation](/0005-article-issue.md)
+
 - [Architecture](/architecture.md)
 - [Local reading requirements](/requirements.md)
 - [Client-only import decision](/decision.md)

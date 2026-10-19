@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Replace the workspace with continuous English articles, inline Git excerpts and chapter contents.
+- Add distraction-free Read mode, automatic fullscreen diagram fitting and paper printing.
+- Remove stage/reference navigation, virtual file panes, manual zoom and version-1 support.
+
 ## [0.1.0] - 2026-10-18
 
 - Verify and atomically cache local artifact-folder imports without uploading source.
