@@ -19,6 +19,7 @@ export class Diagrams {
   private readonly views: View[] = [];
   private readonly urls = new Map<string, string>();
   private active: Asset[] | undefined;
+  private scroll: { x: number; y: number } | undefined;
   private readonly resize = (): void => this.fit();
   private readonly observer = new ResizeObserver(this.resize);
 
@@ -28,6 +29,7 @@ export class Diagrams {
     bar.append(this.title, button('Close diagram', () => this.dialog.close()));
     this.stage.append(this.image); this.dialog.append(bar, this.stage);
     this.dialog.addEventListener('click', (event) => { if (event.target === this.dialog) this.dialog.close(); });
+    this.dialog.addEventListener('close', () => this.restoreScroll());
     this.observer.observe(this.stage); window.addEventListener('resize', this.resize);
   }
 
@@ -38,6 +40,10 @@ export class Diagrams {
     const image = element('img', '', 'screen-diagram'); image.alt = graph.title;
     const trigger = button('', () => {
       this.active = assets; this.title.textContent = graph.title; this.image.alt = graph.title;
+      this.scroll = { x: window.scrollX, y: window.scrollY };
+      document.documentElement.style.setProperty('--diagram-scroll-top', `${-this.scroll.y}px`);
+      document.documentElement.style.setProperty('--diagram-scroll-left', `${-this.scroll.x}px`);
+      document.documentElement.dataset.diagramOpen = 'true';
       this.dialog.showModal(); this.fit();
     }, `Expand diagram: ${graph.title}`);
     trigger.className = 'diagram-trigger'; trigger.append(image);
@@ -65,8 +71,17 @@ export class Diagrams {
     }
   }
 
+  private restoreScroll(): void {
+    if (!this.scroll) return;
+    const { x, y } = this.scroll; this.scroll = undefined;
+    delete document.documentElement.dataset.diagramOpen;
+    document.documentElement.style.removeProperty('--diagram-scroll-top');
+    document.documentElement.style.removeProperty('--diagram-scroll-left');
+    window.scrollTo(x, y);
+  }
+
   dispose(): void {
-    this.dialog.close(); this.observer.disconnect(); window.removeEventListener('resize', this.resize);
+    this.dialog.close(); this.restoreScroll(); this.observer.disconnect(); window.removeEventListener('resize', this.resize);
     this.urls.forEach((url) => URL.revokeObjectURL(url));
   }
 }
