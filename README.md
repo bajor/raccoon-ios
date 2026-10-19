@@ -1,21 +1,22 @@
 # Raccoon reader
 
-A client-only web reader for Raccoon learning artifacts. This repository name is
-historical: there is no native iOS app, Xcode project or TestFlight build.
+A client-only web reader for Raccoon learning artifacts on desktop, tablet and
+phone browsers.
 
-## On iPad
+## Open in a browser
 
-1. Use the existing **GitSync** iOS app to synchronize your source repository and
-   select the analyzed PR branch.
-2. Open [the reader](https://bajor.github.io/raccoon-ios/) in Safari (iPadOS 18.4+).
-   Optionally add it to the Home Screen.
-3. Select **Import raccoon-artifacts folder** and choose that version-2 folder in Files.
+1. Synchronize your source repository and select the analyzed PR branch using
+   your preferred Git client. On iPad, use the existing **GitSync** iOS app.
+2. Open [Raccoon reader](https://bajor.github.io/raccoon-reader/) in your browser.
+   On iPad, use Safari (iPadOS 18.4+) and optionally add it to the Home Screen.
+3. Select **Import raccoon-artifacts folder** and choose that version-2 folder
+   in your browser's folder picker.
 4. Open an article, adjust text size, then press **Read**. Tap the page to reveal
    **Show controls**, or press Escape to exit reading mode.
 5. Tap an inline diagram for a screen-filling, automatically fitted view. Rotate
    the device to change the fit; no manual zoom is needed. **Print** prints the
    complete article, inline code and page-fitted diagrams without application controls.
-6. After changing branches or synchronizing in GitSync, select the folder again.
+6. After changing branches or synchronizing your repository, select the folder again.
    Imports are snapshots, not a live connection to a directory.
 
 The application host receives no imported code. Imports, settings and reading

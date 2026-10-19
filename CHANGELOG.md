@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Rename the repository to raccoon-reader and document browser-based use across platforms.
 - Replace the workspace with continuous English articles, inline Git excerpts and chapter contents.
 - Add distraction-free Read mode, automatic fullscreen diagram fitting and paper printing.
 - Remove stage/reference navigation, virtual file panes, manual zoom and version-1 support.
