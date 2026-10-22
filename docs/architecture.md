@@ -38,6 +38,8 @@ flowchart LR
     Import --> Database[Article database]
     Database --> Reader[Ordered article DOM]
     Reader --> Code[Pierre FileDiff and File]
+    Code --> Screen[Wide split figures with local scrolling]
+    Code --> Print[Wrapped light-theme paper layout]
     Syntax[Local syntax catalog] --> Code
     Reader --> Diagrams[Fitted static images and dialog]
     Reader --> Print[Print stylesheet]

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Widen split comparisons beyond prose, preserve indentation with local scrolling and fit wrapped light-theme code to paper.
 - Render explicit side-by-side diffs and numbered Python-first context through Pierre Diffs, with local syntax assets and no source uploads.
 - Rename the repository to raccoon-reader and document browser-based use across platforms.
 - Replace the workspace with continuous English articles, inline Git excerpts and chapter contents.
