@@ -11,6 +11,10 @@ inline code/diagrams, distraction-free Read mode and paper output. History is
 chapter prose, not navigation. The user explicitly removed backward compatibility
 and requested deletion of the old workspace. The client-only boundary below is unchanged.
 
+Amendment, 2026-10-22: code changes use explicit horizontal side-by-side diffs
+from a maintained library. Python is the primary syntax; surrounding code stays
+inline and highlighted. Existing valid version-2 article data remains readable.
+
 Help a human understand agent-written PRs from complete local artifacts. Threads
 are the primary navigation; current state opens first and history is optional.
 Git is the source of every displayed file. Source is never uploaded by the reader.

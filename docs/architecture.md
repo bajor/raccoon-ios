@@ -23,6 +23,10 @@ Content Security Policy is defense in depth, not a substitute for safe rendering
 chapter progress. `src/diagrams.ts` owns image URLs, automatic layout selection and
 the fitted modal dialog. `src/settings.ts` owns local theme and article text size.
 The `raccoon-articles` IndexedDB database has no old workspace adapter or migration.
+`src/code.ts` resolves explicit comparison endpoints and full-file context windows
+through Pierre's vanilla components. `src/syntax.ts` owns the bounded offline
+grammar/theme catalog; Vite aliases library catalog imports to it. Source parsing,
+alignment, token escaping and rendering belong to the maintained dependencies.
 Diagram dialogs fix the background body at its reading position on screens only;
 close, Escape and disposal restore document scrolling. Print media keeps the body
 in normal flow and overrides both light and dark screen color schemes.
@@ -33,7 +37,8 @@ flowchart LR
     Files[Local Files selection] --> Import[Contract, checksum and static SVG validation]
     Import --> Database[Article database]
     Database --> Reader[Ordered article DOM]
-    Reader --> Excerpt[Exact Git range text]
+    Reader --> Code[Pierre FileDiff and File]
+    Syntax[Local syntax catalog] --> Code
     Reader --> Diagrams[Fitted static images and dialog]
     Reader --> Print[Print stylesheet]
 ```

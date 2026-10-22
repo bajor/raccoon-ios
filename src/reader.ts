@@ -1,5 +1,6 @@
 import { element, button } from './dom';
 import { Diagrams } from './diagrams';
+import { CodeFigures } from './code';
 import { markRead } from './storage';
 import { progressKey, type ImportedArtifact } from './model';
 import type { Artifact, Block } from './vendor/contract';
@@ -10,10 +11,10 @@ export class Reader {
   readonly node = element('section', '', 'reader');
   private readonly article = element('article', '', 'book');
   private readonly diagrams: Diagrams;
+  private readonly code: CodeFigures;
   private readonly exit = button('Show controls', () => this.setReading(false));
   private readonly markers = new Map<string, { link: HTMLAnchorElement; button: HTMLButtonElement; title: string }>();
   private readonly suppressed = new Set<string>();
-  private readonly files = new Map<string, string[]>();
   private readonly observer = new IntersectionObserver((entries) => {
     for (const entry of entries) if (entry.isIntersecting) {
       const key = (entry.target as HTMLElement).dataset.progress!;
@@ -32,6 +33,7 @@ export class Reader {
   constructor(private readonly artifact: ImportedArtifact, private readonly progress: Set<string>,
     onClose: () => void, private readonly onError: (message: string) => void) {
     this.diagrams = new Diagrams(artifact);
+    this.code = new CodeFigures(artifact);
     const controls = element('div', '', 'toolbar reading-controls');
     controls.append(button('Library', onClose), button('Read', () => this.setReading(true)), button('Print', () => window.print()),
       element('span', 'Read hides controls. Tap the page to reveal the exit, or press Escape. F toggles reading.', 'reading-help'));
@@ -79,29 +81,16 @@ export class Reader {
 
   private block(block: Block, chapter: string): HTMLElement {
     if (block.kind === 'diagram') return this.diagrams.figure(chapter, block.diagram);
-    if (block.kind === 'code') return this.excerpt(block.reference);
+    if (block.kind === 'code' || block.kind === 'diff') return this.code.figure(block);
     const paragraph = element('p', '', 'prose');
     if (block.evidence !== 'fact') paragraph.append(element('small', `${block.evidence === 'inference' ? 'Inference' : 'Unknown'}. `, 'evidence-label'));
     paragraph.append(document.createTextNode(block.text));
     return paragraph;
   }
 
-  private excerpt(id: string): HTMLElement {
-    const manifest = this.artifact.manifest;
-    const reference = manifest.content.references.find((reference) => reference.id === id)!;
-    const file = manifest.files.find((file) => file.reference === id)!;
-    if (!this.files.has(file.file)) this.files.set(file.file, new TextDecoder().decode(this.artifact.assets.get(file.file)!).replace(/\n$/, '').split('\n'));
-    const figure = element('figure', '', 'code-excerpt');
-    const label = `${reference.path}:${reference.startLine}-${reference.endLine} · ${reference.commit.slice(0, 12)}`;
-    figure.setAttribute('aria-label', label);
-    const code = element('pre'); code.append(element('code', this.files.get(file.file)!.slice(reference.startLine - 1, reference.endLine).join('\n')));
-    figure.append(element('figcaption', label), code);
-    return figure;
-  }
-
   private get reading(): boolean { return document.documentElement.dataset.reading === 'true'; }
   private setReading(value: boolean): void {
-    const anchor = [...this.article.querySelectorAll<HTMLElement>('h1,h2,h3,.prose,pre,.diagram-figure')].find((node) => {
+    const anchor = [...this.article.querySelectorAll<HTMLElement>('h1,h2,h3,.prose,.code-excerpt,.code-diff,.diagram-figure')].find((node) => {
       const bounds = node.getBoundingClientRect(); return bounds.bottom > 0 && bounds.top < window.innerHeight;
     });
     const top = anchor?.getBoundingClientRect().top;
@@ -127,7 +116,7 @@ export class Reader {
   }
 
   dispose(): void {
-    this.disposed = true; this.observer.disconnect(); this.diagrams.dispose();
+    this.disposed = true; this.observer.disconnect(); this.diagrams.dispose(); this.code.dispose();
     window.removeEventListener('keydown', this.keyboard); delete document.documentElement.dataset.reading;
   }
 }
