@@ -45,6 +45,13 @@ test('code appears at each authored position and shows only the referenced range
   expect(secondCode!.y + secondCode!.height).toBeLessThan(diagram!.y);
 });
 
+test('lone carriage returns cannot shift Git reference line numbers', async ({ page }) => {
+  await openReader(page, { rawSource: 'a\rb\nc\n' });
+  const excerpt = page.locator('.code-excerpt').first();
+  await expect(excerpt.locator('figcaption')).toContainText('Control-escaped source');
+  await expect(excerpt.locator('pre')).toHaveText('2c');
+});
+
 test('Read hides controls and touch reveals a usable exit', async ({ page }) => {
   await openReader(page);
   await page.getByRole('button', { name: 'Read', exact: true }).click();

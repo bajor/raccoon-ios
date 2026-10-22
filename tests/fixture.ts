@@ -18,8 +18,8 @@ const svg = (width: number, height: number): string => `<svg xmlns="http://www.w
 const landscape = svg(900, 240);
 const portrait = svg(240, 900);
 
-export function manifest(pr = 1, snapshot = generation, diagram?: string, long = false, twoChapters = false, comparison?: Comparison): Artifact {
-  const text = comparison ? pythonSource : long ? longSource : source;
+export function manifest(pr = 1, snapshot = generation, diagram?: string, long = false, twoChapters = false, comparison?: Comparison, rawSource?: string): Artifact {
+  const text = rawSource ?? (comparison ? pythonSource : long ? longSource : source);
   const before = comparison ? pythonBefore : olderSource;
   const result: Artifact = {
     version: 2, generation: snapshot, createdAt: '2026-10-18T00:00:00Z', profileHash: 'b'.repeat(64),
@@ -48,12 +48,13 @@ export function manifest(pr = 1, snapshot = generation, diagram?: string, long =
         diagrams: [{ id: 'request', title: 'Request path', commit, nodes: [{ id: 'handler', label: 'Handler', refs: ['r1'] }], edges: [] }],
       }],
     },
-    files: [{ reference: 'r1', blob: commit, sha256: digest(text), file: `files/${digest(text)}.txt`, bytes: Buffer.byteLength(text), lines: comparison ? 9 : long ? 1000 : 3 },
+    files: [{ reference: 'r1', blob: commit, sha256: digest(text), file: `files/${digest(text)}.txt`, bytes: Buffer.byteLength(text), lines: text.replace(/\n$/, '').split('\n').length },
       { reference: 'r0', blob: 'c'.repeat(40), sha256: digest(before), file: `files/${digest(before)}.txt`, bytes: Buffer.byteLength(before), lines: comparison ? 9 : 2 }],
     diagrams: (['landscape', 'portrait'] as const).map((layout) => ({ chapter: 'flow', diagram: 'request', layout,
       file: `diagrams/flow/request-${layout}.svg`, sha256: digest(diagram ?? (layout === 'landscape' ? landscape : portrait)),
       width: layout === 'landscape' ? 900 : 240, height: layout === 'landscape' ? 240 : 900 })),
   };
+  if (rawSource) result.content.references[0] = { ...result.content.references[0]!, startLine: 2, endLine: 2 };
   if (comparison) {
     result.content.references[0] = { ...result.content.references[0]!, path: 'pipeline.py', startLine: 3, endLine: 9 };
     result.content.references[1]!.path = comparison === 'added' ? 'context.py' : 'pipeline.py';
@@ -78,10 +79,10 @@ export function manifest(pr = 1, snapshot = generation, diagram?: string, long =
   return result;
 }
 
-export async function folder(options: { empty?: boolean; snapshot?: string; diagram?: string; corrupt?: boolean; missing?: boolean; twoPrs?: boolean; long?: boolean; twoChapters?: boolean; version?: number; viewportMismatch?: boolean; comparison?: Comparison } = {}): Promise<string> {
+export async function folder(options: { empty?: boolean; snapshot?: string; diagram?: string; corrupt?: boolean; missing?: boolean; twoPrs?: boolean; long?: boolean; twoChapters?: boolean; version?: number; viewportMismatch?: boolean; comparison?: Comparison; rawSource?: string } = {}): Promise<string> {
   const root = join(await mkdtemp(join(tmpdir(), 'raccoon-browser-')), 'raccoon-artifacts');
   await mkdir(root);
-  const manifests = options.empty ? [] : [manifest(1, options.snapshot ?? generation, options.diagram, options.long, options.twoChapters, options.comparison)];
+  const manifests = options.empty ? [] : [manifest(1, options.snapshot ?? generation, options.diagram, options.long, options.twoChapters, options.comparison, options.rawSource)];
   if (options.twoPrs) manifests.push(manifest(2));
   await writeFile(join(root, 'catalog.json'), JSON.stringify({ version: options.version ?? 2, repository: 'bajor/example',
     artifacts: manifests.map((item) => ({ pr: item.source.pr, manifest: `pr-${item.source.pr}/manifest.json` })) }));
@@ -89,7 +90,7 @@ export async function folder(options: { empty?: boolean; snapshot?: string; diag
     const directory = join(root, `pr-${item.source.pr}`);
     await mkdir(join(directory, 'files'), { recursive: true });
     await writeFile(join(directory, 'manifest.json'), JSON.stringify(item));
-    if (!options.missing) await writeFile(join(directory, item.files[0]!.file), options.corrupt ? 'tampered\n' : options.comparison ? pythonSource : options.long && item.source.pr === 1 ? longSource : source);
+    if (!options.missing) await writeFile(join(directory, item.files[0]!.file), options.corrupt ? 'tampered\n' : options.rawSource ?? (options.comparison ? pythonSource : options.long && item.source.pr === 1 ? longSource : source));
     await writeFile(join(directory, item.files[1]!.file), options.comparison ? pythonBefore : olderSource);
     if (options.comparison === 'empty') await writeFile(join(directory, item.files[2]!.file), '');
     for (const asset of item.diagrams) {
