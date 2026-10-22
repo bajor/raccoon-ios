@@ -30,6 +30,7 @@ main { max-width: 72rem; margin: auto; }
 .prose { white-space: pre-wrap; }
 .evidence-label { font-weight: bold; }
 figure { margin: 1.5em 0; min-width: 0; }
+.code-excerpt, .code-diff { --diffs-font-family: ui-monospace, SFMono-Regular, Consolas, monospace; --diffs-font-size: 14px; --diffs-line-height: 1.6; --diffs-tab-size: 4; font: 14px/1.6 ui-monospace, monospace; overflow-wrap: normal; }
 figcaption { margin: .6em 0; overflow-wrap: anywhere; line-height: 1.5; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; padding: 1em; border: 1px solid var(--border); border-radius: .25em; background: var(--panel); font: .72em/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; }
 .diagram-trigger { display: block; width: 100%; border: 1px solid var(--border); padding: .5rem; background: white; }

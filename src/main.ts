@@ -4,6 +4,7 @@ import { importFolder } from './import';
 import { libraries, readProgress, removeLibrary, saveLibrary } from './storage';
 import type { Library } from './model';
 import { Reader } from './reader';
+import { prepareCode } from './code';
 import { applySettings, loadSettings } from './settings';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -66,7 +67,7 @@ function repositoryCard(library: Library): HTMLElement {
     card.append(button(`Open article #${manifest.source.pr}`, async () => {
       const version = ++viewVersion;
       try {
-        const progress = await readProgress();
+        const [progress] = await Promise.all([readProgress(), prepareCode()]);
         if (version !== viewVersion) return;
         reader?.dispose();
         reader = new Reader(artifact, progress, () => { void render().catch(showError); }, showError);

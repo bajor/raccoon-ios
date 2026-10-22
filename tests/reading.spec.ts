@@ -33,7 +33,7 @@ test('code appears at each authored position and shows only the referenced range
   await openReader(page, { long: true });
   const blocks = page.locator('.article-section').first();
   await expect(blocks.locator('pre')).toHaveCount(2);
-  await expect(blocks.locator('pre').first()).toContainText('handler line 500\nhandler line 501\nhandler line 502\nhandler line 503');
+  for (const line of [500, 501, 502, 503]) await expect(blocks.locator('pre').first()).toContainText(`handler line ${line}`);
   await expect(blocks.locator('pre').first()).not.toContainText('handler line 499');
   const explanation = blocks.getByText('The same handler is used again.', { exact: true });
   const firstCode = await blocks.locator('pre').first().boundingBox();
