@@ -21,6 +21,9 @@ export class CodeFigures {
   private readonly diffs = new Map<string, FileDiffMetadata>();
   private readonly views: (File | FileDiff)[] = [];
   private readonly printMedia = matchMedia('print');
+  private printing = false;
+  private readonly beforePrint = (): void => { this.printing = true; this.refresh(); };
+  private readonly afterPrint = (): void => { this.printing = false; this.refresh(); };
   private readonly refresh = (): void => {
     for (const view of this.views) {
       if (view instanceof File) view.setOptions({ ...view.options, ...this.options() });
@@ -33,15 +36,17 @@ export class CodeFigures {
   constructor(private readonly artifact: ImportedArtifact) {
     this.observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     this.printMedia.addEventListener('change', this.refresh);
+    window.addEventListener('beforeprint', this.beforePrint); window.addEventListener('afterprint', this.afterPrint);
   }
 
+  private get printMode(): boolean { return this.printing || this.printMedia.matches; }
   private get themeType(): 'dark' | 'light' {
-    return !this.printMedia.matches && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    return !this.printMode && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
   private options() {
     return { theme, themeType: this.themeType, preferredHighlighter: 'shiki-js' as const,
       disableFileHeader: true, disableVirtualizationBuffers: true, unsafeCSS: printCSS,
-      overflow: this.printMedia.matches ? 'wrap' as const : 'scroll' as const };
+      overflow: this.printMode ? 'wrap' as const : 'scroll' as const };
   }
 
   private file(id: string | null): FileContents | null {
@@ -91,16 +96,16 @@ export class CodeFigures {
       let diff = this.diffs.get(key);
       if (!diff) { diff = parseDiffFromFile(oldFile!, newFile!, { context: 4 }); this.diffs.set(key, diff); }
       const view = new FileDiff({ ...this.options(), diffStyle: 'split', lineDiffType: 'word-alt', hunkSeparators: 'line-info-basic' });
-      this.views.push(view); view.render({ fileDiff: diff, containerWrapper: this.viewport(figure, true) });
+      this.views.push(view); view.render({ fileDiff: diff, containerWrapper: this.viewport(figure) });
+      const region = element('div', '', 'code-diff');
+      region.setAttribute('role', 'region'); region.setAttribute('aria-label', 'Side-by-side code comparison'); region.tabIndex = 0;
+      figure.className = 'comparison-content'; region.append(figure); return region;
     }
     return figure;
   }
 
-  private viewport(figure: HTMLElement, comparison = false): HTMLElement {
+  private viewport(figure: HTMLElement): HTMLElement {
     const viewport = element('div', '', 'code-viewport');
-    if (comparison) {
-      viewport.setAttribute('role', 'region'); viewport.setAttribute('aria-label', 'Side-by-side code comparison'); viewport.tabIndex = 0;
-    }
     figure.append(viewport); return viewport;
   }
 
@@ -112,6 +117,7 @@ export class CodeFigures {
 
   dispose(): void {
     this.observer.disconnect(); this.printMedia.removeEventListener('change', this.refresh);
+    window.removeEventListener('beforeprint', this.beforePrint); window.removeEventListener('afterprint', this.afterPrint);
     for (const view of this.views) view.cleanUp();
   }
 }

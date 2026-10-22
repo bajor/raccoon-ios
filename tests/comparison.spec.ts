@@ -57,11 +57,14 @@ test('split comparisons stay readable after rotation to a narrow screen', async 
   expect(before!.x + before!.width).toBeLessThanOrEqual(after!.x + 1);
   expect(Math.abs(before!.y - after!.y)).toBeLessThan(1);
   await page.setViewportSize({ width: 390, height: 844 });
-  const region = diff.getByRole('region', { name: 'Side-by-side code comparison' });
+  const region = page.getByRole('region', { name: 'Side-by-side code comparison' });
   await region.focus();
   await expect.poll(() => region.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
   await region.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
   await expect.poll(() => region.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+  const caption = await diff.locator('.comparison-labels span').last().boundingBox();
+  const addition = await diff.locator('[data-additions]').boundingBox();
+  expect(Math.abs(caption!.x - addition!.x)).toBeLessThan(16);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
@@ -80,6 +83,21 @@ test('long Python changes fit paper without clipping', async ({ page }) => {
   })).toBe(true);
   expect((await diff.boundingBox())!.width).toBeLessThanOrEqual(a4ContentWidth);
   await page.emulateMedia({ media: 'screen' });
-  const region = diff.getByRole('region', { name: 'Side-by-side code comparison' });
+  const region = page.getByRole('region', { name: 'Side-by-side code comparison' });
   await expect.poll(() => region.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+});
+
+test('actual printing wraps code before pagination begins', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Playwright PDF printing is Chromium-only.');
+  const source = pythonSource + `long_value = "${'reading '.repeat(32)}"\n`;
+  await openComparison(page, 'modified', source);
+  await page.evaluate(() => {
+    window.addEventListener('beforeprint', () => {
+      const root = document.querySelector('.code-diff diffs-container')!.shadowRoot!;
+      document.body.dataset.printFits = String([...root.querySelectorAll<HTMLElement>('[data-code]')]
+        .every((column) => column.scrollWidth <= column.clientWidth + 1));
+    }, { once: true });
+  });
+  await page.pdf({ preferCSSPageSize: true });
+  expect(await page.evaluate(() => document.body.dataset.printFits)).toBe('true');
 });
