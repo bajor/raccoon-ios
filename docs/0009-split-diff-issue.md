@@ -1,7 +1,7 @@
 ---
 type: Issue
 description: Integrate library comparisons, then fit the split layout to screens and paper.
-status: In progress
+status: Implemented
 ---
 
 # Deliver comparison reading

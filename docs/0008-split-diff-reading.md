@@ -40,3 +40,30 @@ use the same reversible display encoding; their stored checksummed bytes remain
 unchanged. This avoids a library convention that otherwise treats CR as a line
 boundary. The browser regression verifies that reference `2-2` of `a\rb\nc\n`
 displays `c`, not `b`.
+
+## Amendment, 2026-10-22: screen and paper geometry
+
+```mermaid
+flowchart LR
+    Compare[Inline comparison] --> Wide[Wide figure, two columns]
+    Wide --> Narrow[Horizontal region on narrow screens]
+    Compare --> Print[Light, wrapped columns on paper]
+    Print --> Restore[Restore screen theme and scrolling]
+```
+
+1. Given a wide screen, when reading a comparison, use the available width beyond
+   the prose column. Identify the before and after revision above their columns.
+2. Given a narrow screen or rotation, keep two readable columns in a focusable,
+   horizontally scrollable region. Preserve Python whitespace without making the
+   article itself scroll horizontally. Single-file context scrolls independently.
+3. Given printing, wrap long lines within the paper width, use the light theme
+   even from dark mode and allow code to paginate. Hide interactive expansion
+   controls, then restore the screen display when printing ends.
+
+| Case | Level | Proves |
+|---|---|---|
+| Wide to narrow rotation | Browser integration | Horizontal column alignment, accessible local scrolling and no page overflow |
+| Long Python comparison in print media | Browser integration | All changes remain present without clipped lines, with screen layout restored afterward |
+
+Acceptance: both browser projects pass. Browser print-media checks do not claim
+physical iPad or printer verification.

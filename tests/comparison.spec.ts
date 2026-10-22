@@ -1,11 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import { rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { folder } from './fixture';
+import { folder, pythonSource } from './fixture';
 
-async function openComparison(page: Page, comparison: 'modified' | 'added' | 'deleted' | 'empty' = 'modified'): Promise<void> {
+async function openComparison(page: Page, comparison: 'modified' | 'added' | 'deleted' | 'empty' = 'modified', rawSource?: string): Promise<void> {
   await page.goto('/');
-  const root = await folder({ comparison });
+  const root = await folder({ comparison, ...(rawSource === undefined ? {} : { rawSource }) });
   try {
     await page.getByLabel('Import raccoon-artifacts folder').setInputFiles(root);
     await expect(page.getByRole('status')).toContainText('Imported bajor/example.');
@@ -44,4 +44,42 @@ test('Python comparisons reopen without a network connection', async ({ page, co
   await context.setOffline(true); await page.reload();
   await page.getByRole('button', { name: 'Open article #1', exact: true }).click();
   await expect(page.locator('.code-diff')).toContainText('return frame.score >= threshold');
+});
+
+test('split comparisons stay readable after rotation to a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openComparison(page);
+  const diff = page.locator('.code-diff');
+  const prose = await page.locator('.chapter-summary').boundingBox();
+  expect((await diff.boundingBox())!.width).toBeGreaterThan(prose!.width);
+  const before = await diff.locator('[data-deletions]').boundingBox();
+  const after = await diff.locator('[data-additions]').boundingBox();
+  expect(before!.x + before!.width).toBeLessThanOrEqual(after!.x + 1);
+  expect(Math.abs(before!.y - after!.y)).toBeLessThan(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const region = diff.getByRole('region', { name: 'Side-by-side code comparison' });
+  await region.focus();
+  await expect.poll(() => region.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+  await region.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
+  await expect.poll(() => region.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('long Python changes fit paper without clipping', async ({ page }) => {
+  const source = pythonSource + Array.from({ length: 90 }, (_, i) => `value_${i} = "${'reading '.repeat(32)}"\n`).join('');
+  await openComparison(page, 'modified', source);
+  await page.getByRole('button', { name: 'Theme', exact: true }).click();
+  const a4ContentWidth = 673; // A4 minus two 16 mm margins, at 96 CSS pixels/inch.
+  await page.setViewportSize({ width: a4ContentWidth, height: 900 });
+  await page.emulateMedia({ media: 'print' });
+  const diff = page.locator('.code-diff');
+  await expect(diff).toContainText('value_89 =');
+  await expect.poll(() => diff.evaluate((node) => {
+    const root = node.querySelector('diffs-container')!.shadowRoot!;
+    return [...root.querySelectorAll<HTMLElement>('[data-code]')].every((column) => column.scrollWidth <= column.clientWidth + 1);
+  })).toBe(true);
+  expect((await diff.boundingBox())!.width).toBeLessThanOrEqual(a4ContentWidth);
+  await page.emulateMedia({ media: 'screen' });
+  const region = diff.getByRole('region', { name: 'Side-by-side code comparison' });
+  await expect.poll(() => region.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
 });

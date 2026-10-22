@@ -15,7 +15,9 @@ phone browsers.
    **Show controls**, or press Escape to exit reading mode.
 5. Tap an inline diagram for a screen-filling, automatically fitted view. Rotate
    the device to change the fit; no manual zoom is needed. **Print** prints the
-   complete article, inline code and page-fitted diagrams without application controls.
+    complete article, wrapped code and page-fitted diagrams without application controls.
+    Changes appear side-by-side with Python-first highlighting. On narrow screens,
+    scroll the comparison region horizontally; source indentation is preserved.
 6. After changing branches or synchronizing your repository, select the folder again.
    Imports are snapshots, not a live connection to a directory.
 
