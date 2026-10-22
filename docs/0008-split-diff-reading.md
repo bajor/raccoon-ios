@@ -67,3 +67,9 @@ flowchart LR
 
 Acceptance: both browser projects pass. Browser print-media checks do not claim
 physical iPad or printer verification.
+
+Actual printing also prepares wrapped rendering synchronously in `beforeprint`
+and restores it in `afterprint`; print-media notifications alone can arrive after
+pagination begins. The Chromium PDF-path regression checks preparation before
+pagination, and a local extracted-PDF check verifies the final line and footer.
+Revision captions share the same scrolling surface as their source columns.

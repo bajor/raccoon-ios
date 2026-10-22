@@ -31,10 +31,10 @@ main { max-width: 72rem; margin: auto; }
 .evidence-label { font-weight: bold; }
 figure { margin: 1.5em 0; min-width: 0; }
 .code-excerpt, .code-diff { --diffs-font-family: ui-monospace, SFMono-Regular, Consolas, monospace; --diffs-font-size: 1em; --diffs-line-height: 1.6; --diffs-tab-size: 4; font: .7em/1.6 ui-monospace, monospace; overflow-wrap: normal; }
-.code-diff { --comparison-width: min(96rem, calc(100vw - 2rem)); width: var(--comparison-width); margin-inline: calc((100% - var(--comparison-width)) / 2); }
+.code-diff { --comparison-width: min(96rem, calc(100vw - 2rem)); width: var(--comparison-width); margin: 1.5em calc((100% - var(--comparison-width)) / 2); overflow-x: auto; }
+.comparison-content { min-width: 52rem; margin: 0; }
 .code-viewport { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: .25rem; }
 .code-viewport > diffs-container { display: block; }
-.code-diff .code-viewport > diffs-container { min-width: 52rem; }
 .code-excerpt figcaption, .code-diff figcaption { font-size: .85rem; }
 .comparison-labels { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .comparison-labels small { grid-column: 1 / -1; }
@@ -70,7 +70,8 @@ figcaption { margin: .6em 0; overflow-wrap: anywhere; line-height: 1.5; }
   p { orphans: 3; widows: 3; }
   .code-excerpt, .code-diff { width: auto; margin-inline: 0; font-size: 8pt; --diffs-line-height: 1.4; }
   .code-viewport { overflow: visible; border-color: #aaa; }
-  .code-diff .code-viewport > diffs-container { min-width: 0; }
+  .code-diff { overflow: visible; }
+  .comparison-content { min-width: 0; }
   .diagram-trigger { display: none; }
   .print-diagram { display: block; width: 100%; height: auto; max-height: 220mm; object-fit: contain; }
   .diagram-figure { break-inside: avoid; }
